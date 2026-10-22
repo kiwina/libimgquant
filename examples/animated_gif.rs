@@ -17,8 +17,9 @@
 //! onto a background color first if that matters. The transparent color is added to the
 //! histogram as a fixed color and put at the last index (`set_last_index_transparent`).
 //!
-//! `--compare` also quantizes every frame with a palette of its own and prints the PSNR of
-//! both, and the size of a GIF with a local color table per frame.
+//! `--compare` also prints each frame's PSNR with the shared palette, with the first frame's
+//! palette and with a palette of its own, and the size of a GIF with a local color table per
+//! frame.
 
 use std::error::Error;
 

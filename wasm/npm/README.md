@@ -2,7 +2,7 @@
 
 Converts RGBA images to 8-bit palette images with alpha, for small PNGs and GIFs, in
 browsers and Node.js. `compressPng` does what pngquant does: a PNG file in, a palette PNG
-of typically 30-40% of the size out.
+out, about 30% of the input size in total on the project's 22-image test set.
 
 This is [libimgquant 3](https://github.com/kiwina/libimgquant), a pure-Rust color quantizer
 based on libimagequant 2.4.1 (the last BSD-licensed release of the library behind pngquant)
@@ -49,11 +49,14 @@ const { data, width, height } = canvas.getContext("2d").getImageData(0, 0, canva
 const { palette, indices, quality } = quantize(data, width, height, { maxColors: 64 });
 ```
 
-Bundlers (Vite, webpack 5, Rollup, esbuild) pick up the `.wasm` file through
+Vite and webpack 5 emit the `.wasm` file automatically: they follow
 `new URL("./libimgquant_bg.wasm", import.meta.url)`. With Vite, add
 `optimizeDeps: { exclude: ["libimgquant"] }` so that the dev server serves the file from the
-package. Without a bundler, serve the package directory and import `index.js` from it; the
-server should send `.wasm` files as `application/wasm`.
+package; with Vite 6 or older, also set `build.target: "es2022"`, because the module uses
+top-level `await`. esbuild and Rollup don't copy the file: copy
+`node_modules/libimgquant/libimgquant_bg.wasm` next to the output bundle. Without a bundler,
+serve the package directory and import `index.js` from it; the server should send `.wasm`
+files as `application/wasm`.
 
 ## API
 
@@ -119,5 +122,6 @@ try {
 ## License
 
 BSD-2-Clause, plus the original permissive notice of libimagequant 2.4.1; see `LICENSE`.
-The WebAssembly module also contains MIT/Apache-2.0/Zlib-licensed Rust crates (the PNG
-codec and the JS bindings); their licenses are in `THIRD-PARTY-LICENSES.txt`.
+The WebAssembly module also contains the Rust standard library and other permissively
+licensed Rust crates (the PNG codec and the JS bindings); their licenses are in
+`THIRD-PARTY-LICENSES.txt`.

@@ -73,6 +73,7 @@ pub struct liq_palette {
 
 /// `liq_error`, with the numeric values of libimagequant 2.4.1.
 #[repr(C)]
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum liq_error {
     /// Success.

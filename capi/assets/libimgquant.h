@@ -8,7 +8,7 @@
  * (http://pngquant.org); declarations marked "libimgquant extension" are new.
  *
  * Copyright (C) 2009-2014 by Kornel Lesinski.
- * Copyright (C) 2026 libimagequant-rs contributors.
+ * Copyright (C) 2026 libimgquant contributors.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

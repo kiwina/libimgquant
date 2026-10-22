@@ -3,12 +3,13 @@
 Converts RGBA images to 8-bit palette images with alpha, for small PNGs and GIFs, like
 pngquant. Pure Rust underneath, BSD-licensed, with no runtime dependencies.
 
-libimgquant 3 starts from a faithful rewrite of libimagequant **2.4.1**, the last
-BSD-licensed release of the library behind pngquant, and improves it with published color
-quantization research. On the project's test corpus it is faster than libimagequant 2.4.1
-and 4.4.1 at the default speed, scores better on SSIMULACRA2, butteraugli and CIEDE2000, and
-makes 9–12% smaller PNGs than 4.4.1. See the
-[project README](https://github.com/kiwina/libimgquant#results) for the measurements.
+libimgquant 3 is a Rust rewrite of libimagequant **2.4.1**, the last BSD-licensed release
+of the library behind pngquant, improved with published color quantization research: a
+variance-based median cut, Hartigan refinement after k-means, an exact nearest-color search,
+an OKLab-shaped color difference and a palette order that makes PNGs smaller.
+`profile="compat"` reproduces 2.4.1's algorithms instead, apart from a few bug fixes. The
+[Rust crate's README](https://crates.io/crates/libimgquant) describes the algorithms and
+compares them with libimagequant 2.4.1 and 4.4.1.
 
 - **BSD-2-Clause**, no GPL code: usable in closed-source and commercial software.
 - **One wheel per platform** for CPython 3.9 and newer (stable ABI, `abi3`).
@@ -21,6 +22,9 @@ makes 9–12% smaller PNGs than 4.4.1. See the
 pip install libimgquant
 pip install "libimgquant[pillow]"   # also installs Pillow, for quantize_image()
 ```
+
+From a checkout of the repository, with a Rust toolchain installed: `pip install ./python`
+(maturin builds the wheel).
 
 ## Compress a PNG file
 
@@ -35,7 +39,7 @@ with open("photo-fs8.png", "wb") as f:
     f.write(small)
 ```
 
-`compress_png` reads any PNG and writes a palette PNG with the same size and gamma, the
+`compress_png` reads any PNG and writes a palette PNG with the same dimensions and gamma, the
 smallest bit depth, a tRNS chunk only as long as needed, and the smaller of a filtered and
 an unfiltered encoding.
 
@@ -79,8 +83,9 @@ restored = palette[indices]                                      # (480, 640, 4)
 
 ### Pillow
 
-`quantize_image` takes a Pillow image in any mode and returns a mode `"P"` image. The
-palette's alpha values go to `info["transparency"]`, so saving it as PNG keeps transparency:
+`quantize_image` takes a Pillow image in any mode, so any format Pillow opens (JPEG, WebP,
+GIF, ...) works, and returns a mode `"P"` image. The palette's alpha values go to
+`info["transparency"]`, so saving it as PNG keeps transparency:
 
 ```python
 from PIL import Image
@@ -111,10 +116,10 @@ All functions take the same keyword-only options:
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `max_colors` | `256` | At most this many palette entries, 2–256. |
-| `speed` | `3` | 1 (slowest, best) to 10 (fastest). Speeds 1–7 also order the palette for smaller PNGs. |
+| `speed` | `3` | 1 (slowest, best) to 10 (fastest). With `profile="improved"`, speeds 1–7 also order the palette for smaller PNGs (not in `quantize_frames`, whose palette is shared). |
 | `quality` | `None` | Like JPEG quality, 0–100. An int is the target; `(minimum, target)` also sets a minimum. The fewest colors that reach the target are used; below the minimum, `QualityTooLowError` is raised. |
 | `dithering` | `1.0` | Floyd-Steinberg dithering, 0 (none) to 1 (full). |
-| `profile` | `"improved"` | `"improved"`: the version 3 algorithms. `"compat"`: libimagequant 2.4.1's output, step by step. |
+| `profile` | `"improved"` | `"improved"`: the version 3 algorithms. `"compat"`: libimagequant 2.4.1's algorithms, step by step, apart from a few bug fixes. |
 
 ## Errors
 

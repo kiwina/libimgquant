@@ -194,7 +194,7 @@ fn parse_args() -> Result<Config, String> {
     let mut args = std::env::args().skip(1);
     let mut cfg = Config {
         inputs: Vec::new(),
-        profiles: vec![Profile::Compat],
+        profiles: vec![Profile::Improved],
         speed: 3,
         dither: 1.0,
         colors: 256,

@@ -70,7 +70,7 @@ def quantize(
     ``speed`` goes from 1 (slowest, best) to 10 (fastest). ``quality`` works like JPEG
     quality: the fewest colors that reach the target are used, and below the minimum
     :class:`QualityTooLowError` is raised. ``profile="compat"`` reproduces libimagequant
-    2.4.1.
+    2.4.1's algorithms, apart from a few bug fixes.
 
     Raises ValueError for arguments out of range, TypeError for objects without the buffer
     protocol, and QualityTooLowError (a ValueError) when the minimum quality can't be
@@ -88,7 +88,7 @@ def compress_png(
 ) -> bytes:
     """Converts a PNG file to a palette PNG, like pngquant, and returns the new file.
 
-    Any PNG can be read; the output keeps its size and gamma, uses the smallest bit depth,
+    Any PNG can be read; the output keeps its dimensions and gamma, uses the smallest bit depth,
     a tRNS chunk only as long as needed, and the smaller of a filtered and an unfiltered
     encoding. Options and errors as for :func:`quantize`; ValueError for an invalid PNG.
     """

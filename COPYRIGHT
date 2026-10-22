@@ -3,7 +3,7 @@ This Rust port is derived from libimagequant 2.4.1
 976e021cda07c14cd36630f611a5a6eb2cafc28e), which was distributed under the
 licenses reproduced below. The port is distributed under the same terms.
 
-© 2026 libimagequant-rs contributors (Rust port).
+© 2026 libimgquant contributors (Rust port).
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

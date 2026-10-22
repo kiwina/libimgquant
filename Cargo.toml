@@ -11,9 +11,17 @@ categories = ["multimedia::images", "compression"]
 keywords = ["quantization", "palette", "pngquant", "png", "gif"]
 edition = "2024"
 rust-version = "1.85"
-# Only the library sources, its self-contained tests (synthetic images, no image files) and
-# the license and documentation files. examples/ (needs local PNG files) and tools/ stay out.
-include = ["/src/**/*.rs", "/tests/**/*.rs", "/COPYRIGHT", "/README.md", "/CHANGELOG.md"]
+# Only the library sources, its self-contained tests (synthetic images, no image files), the
+# animated_gif example and the license and documentation files. tools/ stays out.
+include = [
+    "/src/**/*.rs",
+    "/tests/**/*.rs",
+    "/examples/animated_gif.rs",
+    "/COPYRIGHT",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/BENCHMARKS.md",
+]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -40,10 +48,11 @@ png = ["dep:png"]
 [dependencies]
 rgb = { version = "0.8.50", default-features = false }
 rayon = { version = "1.10", optional = true }
-png = { version = "0.18", optional = true }
+# 0.18.1 added Filter::MinEntropy
+png = { version = "0.18.1", optional = true }
 
 [dev-dependencies]
-png = "0.18"
+png = "0.18.1"
 rayon = "1.10"
 # examples/animated_gif.rs; without default features it has no quantizer of its own
 gif = { version = "0.14", default-features = false, features = ["std"] }

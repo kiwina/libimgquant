@@ -22,10 +22,11 @@ const EXIT_IO: u8 = 1;
 const EXIT_USAGE: u8 = 2;
 /// The output exists and `--force` was not given.
 const EXIT_NOT_OVERWRITING: u8 = 15;
-/// The minimum `--quality` could not be reached.
-const EXIT_QUALITY_TOO_LOW: u8 = 98;
 /// `--skip-if-larger` and the result is not smaller than the input.
-const EXIT_TOO_LARGE: u8 = 99;
+const EXIT_TOO_LARGE: u8 = 98;
+/// The minimum `--quality` could not be reached (pngquant's 99, libimagequant's
+/// `LIQ_QUALITY_TOO_LOW`).
+const EXIT_QUALITY_TOO_LOW: u8 = 99;
 
 /// Why one file was not converted: an exit code and a message.
 struct Failure {

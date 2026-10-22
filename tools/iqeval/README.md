@@ -6,8 +6,8 @@ and classic metrics, writes the PNG the way a size-conscious encoder should, and
 runs image by image.
 
 It is a separate workspace member with `publish = false`, so its dependencies and its
-MSRV (1.89, for butteraugli) never reach the library, which keeps MSRV 1.85 and its two
-dependencies. `cargo build`/`cargo test` in the repository root build only the library;
+MSRV (1.89, for butteraugli) never reach the library, which keeps MSRV 1.85 and its small
+dependency set (rgb, plus optional rayon and png). `cargo build`/`cargo test` in the repository root build only the library;
 use `-p iqeval` for this tool.
 
 ## Usage
@@ -19,7 +19,7 @@ cargo run --release -p iqeval -- --diff old.tsv new.tsv
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `--profile compat\|improved\|both` | `compat` | `both` runs the two profiles interleaved (A B A B per repetition, so load drifts hit both alike) and prints improved vs compat |
+| `--profile compat\|improved\|both` | `improved` | `both` runs the two profiles interleaved (A B A B per repetition, so load drifts hit both alike) and prints improved vs compat |
 | `--speed N` | 3 | `set_speed` |
 | `--dither F` | 1.0 | `set_dithering_level` (the library default is 0) |
 | `--colors N` | 256 | `set_max_colors` |
@@ -44,12 +44,26 @@ cargo run --release -p iqeval -- $C --profile both --repeat 3 --dither 1 --save 
 cargo run --release -p iqeval -- $C --profile both --repeat 3 --dither 0 --save s3d0.tsv
 ```
 
-and for a change that must keep output identical (Compat), save a run before and after and
-check `identical outputs: 22/22` in `--diff`.
+and for a change that must keep Compat output identical, save a `--profile compat` (or
+`both`) run before and after and check `identical outputs: 22/22` in `--diff`. Runs saved
+before the default became `improved` hold compat rows only; compare them with a new
+`--profile compat` run.
 
-On the 22-image, 19-megapixel `corpus-v1` a single run takes about 40 s (most of it
-SSIMULACRA2), and `--profile both --repeat 3` about 2-3 minutes on a 14-thread machine.
-Peak memory is about 2.5 GB, for a 4-megapixel image with alpha.
+On the project's 22-image, 18.5-megapixel test set (not part of the repository; any
+directory of PNG files works) a single run takes about 40 s (most of it SSIMULACRA2), and
+`--profile both --repeat 3` about 2-3 minutes on a 14-thread machine. Peak memory is about
+2.5 GB, for a 4-megapixel image with alpha.
+
+## Inputs
+
+PNG files only: a directory argument takes its `*.png` files, and any PNG color type and bit
+depth is read as 8-bit RGBA. The gAMA chunk is ignored, so every image is treated as sRGB.
+
+PNG is used because it is lossless: the decoded pixels are the exact reference that the
+metrics compare against, and PNG is also the output whose size `png_bytes` measures. The
+quantizer and the metrics work on RGBA pixels and don't depend on the file format, so to
+evaluate JPEG, WebP or GIF sources, convert them to PNG first (a lossy source then becomes
+the reference as decoded).
 
 ## Metrics
 
@@ -79,11 +93,13 @@ Opaque images use one 0.5 background, which has no effect.
 scores do not depend on the number of threads. Values are compared after rounding to the
 TSV precision, so differences below it count as ties.
 
-**PNG size.** Indexed color, filter type None (PNG spec section 12.7 recommends it for
-palette images; the png crate's default is adaptive filtering, which costs 14-21% here),
-the smallest bit depth holding the palette (1, 2, 4 or 8 bits), a tRNS chunk trimmed after
-the last non-opaque entry, and `Compression::High`. Note that png 0.18's
-`set_compression` also resets the filter, so `set_filter` must come after it.
+**PNG size.** The smaller of two indexed-color encodings, one with filter type None and one
+with per-row filters chosen by minimum entropy (the png crate's default, adaptive
+filtering, makes palette images about 5% larger with the improved profile's ordered palette
+and 16-23% larger without it), with the smallest bit depth holding the
+palette (1, 2, 4 or 8 bits), a tRNS chunk trimmed after the last non-opaque entry, and
+`Compression::High`: the same as `libimgquant::png_io::encode_indexed`. Note that png
+0.18's `set_compression` also resets the filter, so `set_filter` must come after it.
 
 ## Comparison output
 
@@ -96,25 +112,20 @@ the last non-opaque entry, and `Compression::High`. Note that png 0.18's
    run is better), the exact two-sided Wilcoxon signed-rank p-value over the paired
    differences (zeros dropped, ties given average ranks), and for relative metrics the
    geometric mean of the per-image ratios, which is the fair summary for bytes and time.
-4. Per image class (the file name up to the first `-`): mean changes and geometric-mean
+4. Per image class (the file name up to the first `-` or `_`): mean changes and geometric-mean
    byte and time ratios.
 
 Rows are paired by image name. When the old file holds several profiles, each new profile
 is compared with the same profile; when it holds one, every new profile is compared with it.
 
 Timing on a shared machine is noisy: compare `ms` only with `--repeat 3` or more, preferably
-in one `--profile both` run, and treat a few percent as noise (a Compat vs Improved run with
-identical outputs shows the noise floor directly).
+in one `--profile both` run, and treat a few percent as noise (two `--save` runs of the same
+build and profile, compared with `--diff`, show the noise floor directly).
 
 ## Licenses of the dependencies
 
-All permissive, confirmed from each crate's `Cargo.toml` and license files in the cargo
-registry: `ssimulacra2` 0.5.1 (BSD-2-Clause, LICENSE file), its `yuvxyb` 0.4 and
-`yuvxyb-math` (MIT), `butteraugli` 0.9.3 (BSD-3-Clause in Cargo.toml and README; the crate
-ships no LICENSE file), `png` 0.18 (MIT OR Apache-2.0), `rayon` (MIT OR Apache-2.0),
-`miniz_oxide` (tests only; MIT OR Zlib OR Apache-2.0). The other crates they pull in are
-`v_frame` (BSD-2-Clause), `imgref` (CC0-1.0 OR Apache-2.0), `unicode-ident`
-((MIT OR Apache-2.0) AND Unicode-3.0), `bytemuck` (Zlib OR Apache-2.0 OR MIT), and MIT or
-MIT OR Apache-2.0 for the rest (`aligned-vec`, `archmage`, `magetypes`, `av-data`, `equator`,
-`num-*`, `thiserror`, `syn`, ...). None is GPL, LGPL, AGPL or MPL. dssim is deliberately
-not used (AGPL-3.0).
+All permissive (BSD-2-Clause, BSD-3-Clause, MIT, Apache-2.0, Zlib, CC0 and similar), checked
+by cargo-deny with the repository's `deny.toml` like the rest of the workspace. The metric
+crates are `ssimulacra2` (BSD-2-Clause) and `butteraugli` (BSD-3-Clause, declared in its
+`Cargo.toml` and README; the crate ships no LICENSE file). dssim is deliberately not used
+(AGPL-3.0).

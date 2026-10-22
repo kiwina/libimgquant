@@ -203,7 +203,7 @@ impl QuantizeResult {
 /// Options: `speed` 1 (slowest, best) to 10 (fastest); `quality` None, a target 0-100 or
 /// (minimum, target), like JPEG quality: the fewest colors that reach the target are used,
 /// and QualityTooLowError is raised below the minimum; `dithering` 0 (none) to 1 (full
-/// Floyd-Steinberg); `profile` "improved" or "compat" (libimagequant 2.4.1's output).
+/// Floyd-Steinberg); `profile` "improved" or "compat" (libimagequant 2.4.1's algorithms).
 ///
 /// Raises ValueError for arguments out of range, TypeError for objects without the buffer
 /// protocol, and QualityTooLowError (a ValueError) when the minimum quality can't be

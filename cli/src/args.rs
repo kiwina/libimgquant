@@ -28,7 +28,7 @@ options:
       --floyd[=0.0..1.0]  dithering level (default 1, full dithering)
       --posterize N       ignore N least significant bits of each channel (0-4)
       --strip             accepted for compatibility: metadata is never copied
-      --profile NAME      'improved' (default) or 'compat' (libimagequant 2.4.1 output)
+      --profile NAME      'improved' (default) or 'compat' (libimagequant 2.4.1's algorithms)
       --threads N         number of worker threads (default: one per CPU)
   -v, --verbose           print the quantizer's progress and per-file statistics
   -q, --quiet             don't print notices about skipped files (exit codes 15, 98, 99);
@@ -48,8 +48,8 @@ exit codes:
   1   a file could not be read, decoded or written
   2   invalid command line
   15  the output file exists and --force was not given (file not written)
-  98  the image could not reach the minimum --quality (file not written)
-  99  --skip-if-larger: the result would not be smaller (file not written)
+  98  --skip-if-larger: the result would not be smaller (file not written)
+  99  the image could not reach the minimum --quality (file not written)
 With several input files, every file is processed and the first non-zero code is returned.
 ";
 

@@ -1,6 +1,7 @@
 {
   "name": "libimgquant",
   "version": "3.0.0",
+  "private": true,
   "description": "Color quantizer for small PNGs and GIFs: RGBA to 8-bit palette with alpha, and pngquant-style PNG compression. Pure Rust compiled to WebAssembly, BSD-licensed, for browsers and Node.js.",
   "license": "BSD-2-Clause",
   "repository": {

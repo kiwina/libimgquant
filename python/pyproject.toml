@@ -5,9 +5,11 @@ build-backend = "maturin"
 
 [project]
 name = "libimgquant"
-version = "3.0.0"
+dynamic = ["version"]
 description = "Pure-Rust, BSD-licensed color quantizer: RGBA images to 8-bit palette images with alpha, for small PNGs and GIFs"
-readme = "README.md"
+# Not "README.md": maturin's sdist moves this file to the repository root, where README.md
+# is the Rust crate's.
+readme = "../python/README.md"
 license = "BSD-2-Clause"
 # A copy of ../COPYRIGHT: the sdist puts the library crate's COPYRIGHT at its root already.
 license-files = ["LICENSE"]

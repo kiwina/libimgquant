@@ -276,7 +276,7 @@ fn skip_if_larger() {
     let tiny = encode(1, 1, png::ColorType::Grayscale, png::BitDepth::One, &[0x80], |_| {});
     fs::write(dir.join("tiny.png"), &tiny).unwrap();
     let out = run(&dir, &["--skip-if-larger", "tiny.png"]);
-    assert_eq!(code(&out), 99, "{}", stderr(&out));
+    assert_eq!(code(&out), 98, "{}", stderr(&out));
     assert!(!dir.join("tiny-fs8.png").exists());
     // without the option it is written
     assert_eq!(code(&run(&dir, &["tiny.png"])), 0);
@@ -294,11 +294,11 @@ fn skip_if_larger() {
 }
 
 #[test]
-fn quality_too_low_exits_98() {
+fn quality_too_low_exits_99() {
     let dir = test_dir("quality");
     fs::write(dir.join("noise.png"), noise_png(64, 64)).unwrap();
     let out = run(&dir, &["--quality", "95-100", "8", "noise.png"]);
-    assert_eq!(code(&out), 98, "{}", stderr(&out));
+    assert_eq!(code(&out), 99, "{}", stderr(&out));
     assert!(stderr(&out).contains("quality"));
     assert!(!dir.join("noise-fs8.png").exists());
     // a reachable quality is fine

@@ -7,8 +7,8 @@
 #   4. the hand-written files in npm/, the license, and the licenses of the Rust crates
 #      compiled into the .wasm.
 #
-# Needs: rustup target add wasm32-unknown-unknown, and the wasm-bindgen CLI of exactly the
-# wasm-bindgen version in Cargo.lock (the CLI and the crate must match):
+# Needs: rustup target add wasm32-unknown-unknown, jq, and the wasm-bindgen CLI of exactly
+# the wasm-bindgen version in Cargo.lock (the CLI and the crate must match):
 #   cargo install wasm-bindgen-cli --version <version> --locked
 set -euo pipefail
 
@@ -29,6 +29,13 @@ rm -rf "$out"
 mkdir -p "$out"
 wasm-bindgen --target web --out-dir "$out" --out-name libimgquant \
     target/wasm32-unknown-unknown/release/libimgquant_wasm.wasm
+# Drop the declarations of wasm-bindgen's init functions: the package doesn't export them,
+# and their DOM types (RequestInfo, Response) break type checks in Node-only projects.
+sed -i '/^export type InitInput/,$d' "$out/libimgquant.d.ts"
+if grep -qE 'WebAssembly|BufferSource|RequestInfo' "$out/libimgquant.d.ts"; then
+    echo "build.sh: DOM types left in libimgquant.d.ts" >&2
+    exit 1
+fi
 
 if [ "${WASM_OPT:-1}" != 0 ] && command -v wasm-opt > /dev/null; then
     # the features rustc enables by default for wasm32-unknown-unknown
@@ -39,13 +46,22 @@ else
     echo "build.sh: wasm-opt not used"
 fi
 
-cp npm/package.json npm/index.js npm/node.js npm/index.d.ts npm/README.md "$out/"
+# npm/package.json is marked private so that it can't be published by mistake; the built
+# package can.
+jq 'del(.private)' npm/package.json > "$out/package.json"
+cp npm/index.js npm/node.js npm/index.d.ts npm/README.md "$out/"
 cp ../COPYRIGHT "$out/LICENSE"
 
 # The license texts of every crate compiled into the .wasm (not build-time proc-macros).
 {
-    echo "libimgquant's WebAssembly module contains these Rust crates besides libimgquant."
-    echo "Their licenses follow; where a crate offers a choice that includes MIT, MIT is used."
+    echo "libimgquant's WebAssembly module contains the Rust standard library and these Rust"
+    echo "crates besides libimgquant. Their licenses follow; where a crate offers a choice that"
+    echo "includes MIT, MIT is used."
+    printf '\n%s\n%s\n%s\n\n' "================================================================================" \
+        "Rust standard library: core, alloc, std (MIT OR Apache-2.0)" \
+        "================================================================================"
+    sed 's/<year> <copyright holders>/The Rust Project Contributors/' \
+        "$(rustc --print sysroot)/share/doc/rust/licenses/MIT.txt"
     paths=$(cargo metadata --format-version 1 --locked --filter-platform wasm32-unknown-unknown |
         jq -r '.packages[] | "\(.name) v\(.version)\t\(.manifest_path | sub("/Cargo.toml$"; ""))"')
     cargo tree --locked -e normal,no-proc-macro --target wasm32-unknown-unknown --prefix none \

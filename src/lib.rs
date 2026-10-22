@@ -2,10 +2,14 @@
 //! compression and high-quality GIFs. Pure Rust, `#![forbid(unsafe_code)]`, BSD-2-Clause.
 //!
 //! libimgquant 3 starts from a faithful Rust rewrite of
-//! [libimagequant](https://pngquant.org/lib/) 2.4.1, the last BSD-licensed release of the
-//! library behind pngquant, and improves it with published color quantization research:
-//! a variance-based median cut, Hartigan refinement after k-means, an exact nearest-color
-//! search, an OKLab-shaped color difference and a palette order that compresses better.
+//! [libimagequant 2.4.1](https://github.com/ImageOptim/libimagequant/tree/2.4.1), the last
+//! BSD-licensed release of the library behind pngquant, and improves it with published color
+//! quantization research: a variance-based median cut, Hartigan refinement after k-means, an
+//! exact nearest-color search, an OKLab-shaped color difference and a palette order that
+//! compresses better.
+//!
+//! It works on pixels, not files: RGBA pixels from any decoder go in, a palette and one index
+//! per pixel come out. The optional `png` feature reads and writes PNG files.
 //!
 //! # Quick start
 //!
@@ -71,8 +75,9 @@
 //!
 //! # Cargo features
 //!
-//! - **`threads`** (default): runs the histogram, contrast maps, k-means, remapping and
-//!   dithering in parallel with [rayon](https://crates.io/crates/rayon). Parallel sums use
+//! - **`threads`** (default): runs the histogram, pixel conversion, contrast and dither maps,
+//!   k-means, remapping and (in the Improved profile) dithering in parallel with
+//!   [rayon](https://crates.io/crates/rayon). Parallel sums use
 //!   fixed work chunks, so the output is the same for any number of threads. It can differ in
 //!   the last bits from the build without `threads`, which sums in exactly the original order.
 //!   Use `default-features = false` for a single-threaded build without the rayon
@@ -97,7 +102,8 @@
 //!   with per-row filters chosen by minimum entropy. The default profile orders the palette
 //!   so that colors that touch in the image get close indices, which often makes the filtered
 //!   encoding smaller. Adaptive filtering on its own, the png crate's default, makes palette
-//!   images 15-20% larger.
+//!   images larger: about 5% with the default profile's ordered palette, 16-23% without it
+//!   ([`Profile::Compat`], or speeds 8-10).
 //!
 //! With the [png](https://crates.io/crates/png) crate (0.18), for 8 bits per pixel:
 //!
@@ -145,10 +151,11 @@
 //!
 //! # C API and command-line tool
 //!
-//! - [libimgquant-capi](https://crates.io/crates/libimgquant-capi) builds `libimgquant.so`,
-//!   `.dylib`, `.dll` and `.a` with the header `libimgquant.h`, which has the libimagequant
-//!   2.4.x API. C and C++ programs written for 2.4.x only need a new include and
-//!   `-limgquant`. All unsafe code is in that crate.
+//! - [libimgquant-capi](https://crates.io/crates/libimgquant-capi) builds a shared library
+//!   (`libimgquant.so`, `libimgquant.dylib` or `imgquant.dll`) and a static library with the
+//!   header `libimgquant.h`, which has the libimagequant 2.4.x API. C and C++ programs
+//!   written for 2.4.x only need a new include and `-limgquant`. All unsafe code is in that
+//!   crate.
 //! - [imgquant](https://crates.io/crates/imgquant) is a pngquant-style command-line tool
 //!   built on this crate.
 //!

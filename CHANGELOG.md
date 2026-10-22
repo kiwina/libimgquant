@@ -36,7 +36,7 @@ compared with libimagequant 2.4.1, the BSD-licensed C library it is based on.
 
 On the project's 22-image test corpus at speed 3 without dithering, the default profile
 takes 1.39 s against 4.73 s for the 2.4.1 port, scores better on SSIMULACRA2, butteraugli
-and CIEDE2000, and gives 6% smaller PNGs (README, "Results").
+and CIEDE2000, and gives 6% smaller PNGs (BENCHMARKS.md).
 
 ### Faster in both profiles (output unchanged)
 
@@ -86,7 +86,7 @@ and CIEDE2000, and gives 6% smaller PNGs (README, "Results").
 - pngquant's options: number of colors, `--quality`, `--speed`, `--nofs`/`--floyd`,
   `--posterize`, `--ext`, `-o`, `--force`, `--skip-if-larger`, `--strip`, `-v`/`-q`;
   plus `--profile` and `--threads`.
-- pngquant's exit codes: 98 when the minimum quality can't be reached, 99 when the result
+- pngquant's exit codes: 99 when the minimum quality can't be reached, 98 when the result
   would be larger (`--skip-if-larger`), 15 when the output exists without `--force`.
 - Reads every PNG color type and bit depth, keeps the input's gamma, writes the smallest
   bit depth and the smaller of an unfiltered and a filtered encoding, and writes files

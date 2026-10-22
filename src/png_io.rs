@@ -20,7 +20,7 @@
 //! // input: the bytes of a PNG file
 //! let (output, quality) = libimgquant::png_io::compress_png(&input, &attr, 1.0)?;
 //! assert!(quality.is_some_and(|q| q >= 65));
-//! // output: a palette PNG with the input's size and gamma
+//! // output: a palette PNG with the input's dimensions and gamma
 //! let decoded = libimgquant::png_io::decode(&output)?;
 //! assert_eq!((decoded.width, decoded.height), (64, 64));
 //! # Ok(())
@@ -36,7 +36,10 @@ use std::io::Cursor;
 use crate::{Attributes, Error, RGBA};
 
 /// A PNG decoded to 8-bit RGBA by [`decode`].
+///
+/// More fields (such as color space information) may be added in minor releases.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct DecodedPng {
     /// `width * height` pixels, row by row.
     pub pixels: Vec<RGBA>,

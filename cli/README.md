@@ -42,6 +42,9 @@ curl -s https://example.com/image.png | imgquant - > image-small.png
 imgquant --speed 10 --nofs sprite.png
 ```
 
+On Windows, cmd and PowerShell don't expand `*.png`. In PowerShell, pass the files with
+`imgquant (Get-ChildItem *.png).FullName`.
+
 ## Options
 
 | Option | Meaning |
@@ -51,13 +54,13 @@ imgquant --speed 10 --nofs sprite.png
 | `-o`, `--output FILE` | Output file name; one input file only. `-` writes to standard output. |
 | `--ext SUFFIX` | Suffix of output file names, replacing a trailing `.png` of the input. Default `-fs8.png`, or `-or8.png` when dithering is off. |
 | `--skip-if-larger` | Only save converted files that are smaller than the input. |
-| `-Q`, `--quality MIN-MAX` | Quality 0–100, like JPEG. The fewest colors that reach `MAX` are used; if even `ncolors` colors can't reach `MIN`, the file is not saved (exit code 98). Also `MAX` or `-MAX` (minimum 0) and `MIN-` (maximum 100). |
+| `-Q`, `--quality MIN-MAX` | Quality 0–100, like JPEG. The fewest colors that reach `MAX` are used; if even `ncolors` colors can't reach `MIN`, the file is not saved (exit code 99). Also `MAX` or `-MAX` (minimum 0) and `MIN-` (maximum 100). |
 | `-s`, `--speed N` | 1 (slowest, best) to 10 (fastest). Default 3. |
 | `--nofs` | No dithering. |
 | `--floyd[=LEVEL]` | Floyd-Steinberg dithering level 0.0–1.0; default 1 (full). The level must be given with `=`. |
 | `--posterize N` | Ignore the N least significant bits of each channel (0–4), for displays with fewer bits per channel. |
 | `--strip` | Accepted for compatibility; metadata is never copied. |
-| `--profile NAME` | `improved` (default): libimgquant 3's algorithms. `compat`: libimagequant 2.4.1's output. |
+| `--profile NAME` | `improved` (default): libimgquant 3's algorithms. `compat`: libimagequant 2.4.1's algorithms. |
 | `--threads N` | Number of worker threads (default: one per CPU). |
 | `-v`, `--verbose` | Print the quantizer's progress and per-file statistics (size, colors, quality, time) to standard error. |
 | `-q`, `--quiet` | Don't print notices about skipped files (exit codes 15, 98, 99). Errors are still printed. |
@@ -75,8 +78,8 @@ Short options can be combined (`-fv`), and option values can be given as `--spee
 | 1 | A file could not be read, decoded or written. |
 | 2 | Invalid command line. |
 | 15 | The output file already exists and `--force` was not given. The file is not written. |
-| 98 | The image could not reach the minimum `--quality`. The file is not written. |
-| 99 | `--skip-if-larger`, and the result would not be smaller than the input. The file is not written. |
+| 98 | `--skip-if-larger`, and the result would not be smaller than the input. The file is not written. |
+| 99 | The image could not reach the minimum `--quality`. The file is not written. |
 
 With several input files, every file is processed in order, and the exit code is that of the
 first file that failed.
@@ -108,7 +111,12 @@ first file that failed.
 - **Not implemented:** `--map`, `--iebug`, `--transbug`, `--ordered` and other options not
   listed above are rejected with exit code 2.
 - **`--skip-if-larger`:** compares the output with the input file size only.
+- **`-` as output when the file is not saved (exit code 98 or 99):** nothing is written to
+  standard output. pngquant writes the original image there when the quality is too low.
+- **Error exit codes:** imgquant uses 1 for any read, decode or write error and 2 for an
+  invalid command line. pngquant's codes for these cases differ (2 is a read error there);
+  0, 15, 98 and 99 mean the same in both.
 
 ## License
 
-BSD-2-Clause, plus the original permissive notice by Jef Poskanzer. See [COPYRIGHT](COPYRIGHT).
+BSD-2-Clause, plus the original permissive notice by Jef Poskanzer. See [COPYRIGHT](https://docs.rs/crate/imgquant/latest/source/COPYRIGHT).

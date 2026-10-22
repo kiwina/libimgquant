@@ -19,7 +19,7 @@ type LogCallback = Arc<dyn Fn(&Attributes, &str) + Send + Sync>;
 ///
 /// let mut attr = libimgquant::new();
 /// assert_eq!(attr.profile(), Profile::Improved);
-/// // Reproduce libimagequant 2.4.1's output.
+/// // Reproduce libimagequant 2.4.1 step by step.
 /// attr.set_profile(Profile::Compat);
 /// assert_eq!(attr.profile(), Profile::Compat);
 /// ```

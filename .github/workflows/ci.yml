@@ -38,15 +38,16 @@ jobs:
         run: cargo test -p libimgquant --no-default-features --features png --locked
 
   msrv:
-    # The library and the C API keep MSRV 1.85; tools/iqeval needs 1.89 and is not built here.
-    name: MSRV 1.85 (library, C API)
+    # The library, the C API and the CLI keep MSRV 1.85; tools/iqeval needs 1.89 and is not
+    # built here.
+    name: MSRV 1.85 (library, C API, CLI)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
-      - name: Test the library and the C API
-        run: cargo test -p libimgquant -p libimgquant-capi --locked
+      - name: Test the library, the C API and the CLI
+        run: cargo test -p libimgquant -p libimgquant-capi -p imgquant --locked
       - name: Build the library without default features
         run: cargo build -p libimgquant --no-default-features --locked
 
@@ -208,7 +209,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, python: "3.9" }
+          # setup-python has no CPython 3.9 for Ubuntu 26.04 (the new ubuntu-latest)
+          - { os: ubuntu-24.04, python: "3.9" }
           - { os: ubuntu-latest, python: "3.14" }
           - { os: macos-latest, python: "3.14" }
           - { os: windows-latest, python: "3.14" }

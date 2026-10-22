@@ -19,7 +19,7 @@ butteraugli = ["dep:butteraugli"]
 
 [dependencies]
 libimgquant = { path = "../..", version = "3.0.0", default-features = false }
-png = "0.18"
+png = "0.18.1"
 rayon = "1.10"
 ssimulacra2 = "0.5.1"
 butteraugli = { version = "0.9.3", optional = true }

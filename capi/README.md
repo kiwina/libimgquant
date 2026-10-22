@@ -3,7 +3,6 @@
 [![crates.io](https://img.shields.io/crates/v/libimgquant-capi.svg)](https://crates.io/crates/libimgquant-capi)
 [![docs.rs](https://img.shields.io/docsrs/libimgquant-capi)](https://docs.rs/libimgquant-capi)
 [![License: BSD-2-Clause](https://img.shields.io/crates/l/libimgquant-capi.svg)](#license)
-[![CI](https://github.com/kiwina/libimgquant/actions/workflows/ci.yml/badge.svg)](https://github.com/kiwina/libimgquant/actions/workflows/ci.yml)
 
 A C API for [libimgquant](https://crates.io/crates/libimgquant), the pure-Rust, BSD-licensed color quantizer. The header
 [`assets/libimgquant.h`](https://docs.rs/crate/libimgquant-capi/latest/source/assets/libimgquant.h) has the same functions, types and values as
@@ -117,7 +116,8 @@ int quantize(unsigned char *rgba, int width, int height,
   It gives better and smaller output, but different output. `liq_set_profile(attr,
   LIQ_PROFILE_COMPAT)` reproduces 2.4.1 apart from the fixes listed in the
   [libimgquant README](https://crates.io/crates/libimgquant).
-  `LIQ_HAS_PROFILES` is defined when these functions exist.
+  `LIQ_HAS_PROFILES` is defined when these functions exist. `liq_get_profile` returns an
+  `int`, -1 for an invalid handle.
 - **Custom allocators:**
   - the library never calls the custom `malloc`; handles and internal buffers use Rust's
     allocator;
@@ -144,9 +144,7 @@ int quantize(unsigned char *rgba, int width, int height,
     through a NULL pointer.
 - **Version and extensions:**
   - `LIQ_VERSION` is 30000;
-  - `liq_set_profile`/`liq_get_profile` choose between the version 3 algorithms and exact
-    2.4.1 behavior (`LIQ_HAS_PROFILES` is defined); `liq_get_profile` returns an `int`, -1 for
-    an invalid handle;
+  - `liq_set_profile`/`liq_get_profile` (see Profiles above);
   - `liq_version()` is declared; 2.4.1 exported it without declaring it;
   - 2.4.1's undeclared helper symbols (`liq_crash_if_invalid_handle_pointer_given`,
     `liq_crash_if_invalid_pointer_given`, `liq_executing_user_callback`) are not exported.
