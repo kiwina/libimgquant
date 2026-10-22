@@ -1,0 +1,28 @@
+[package]
+name = "imgquant"
+version = "3.0.0"
+description = "pngquant-style command-line PNG quantizer (lossy PNG compression to 8-bit palette with alpha), built on libimgquant"
+license = "BSD-2-Clause"
+readme = "README.md"
+categories = ["multimedia::images", "command-line-utilities"]
+keywords = ["pngquant", "png", "quantization", "palette", "compression"]
+edition = "2024"
+rust-version = "1.85"
+include = ["COPYRIGHT", "README.md", "Cargo.toml", "src/**/*.rs", "tests/**/*.rs"]
+repository = "https://github.com/kiwina/libimgquant"
+homepage = "https://github.com/kiwina/libimgquant"
+
+[[bin]]
+name = "imgquant"
+path = "src/main.rs"
+
+[features]
+default = ["threads"]
+# Parallel quantization and remapping (libimgquant's `threads` feature) and the --threads option.
+threads = ["libimgquant/threads", "dep:rayon"]
+
+[dependencies]
+libimgquant = { path = "..", version = "3.0.0", default-features = false }
+png = "0.18"
+# already a dependency of libimgquant's `threads` feature; used only to size the thread pool
+rayon = { version = "1.10", optional = true }

@@ -1,0 +1,50 @@
+[package]
+name = "libimgquant-capi"
+version = "3.0.0"
+description = "C API of libimgquant (libimgquant.h, libimgquant.so/.a), compatible with the libimagequant 2.4.x API"
+license = "BSD-2-Clause"
+readme = "README.md"
+documentation = "https://docs.rs/libimgquant-capi"
+repository = "https://github.com/kiwina/libimgquant"
+homepage = "https://github.com/kiwina/libimgquant"
+categories = ["multimedia::images", "compression"]
+keywords = ["quantization", "palette", "libimagequant", "ffi", "png"]
+edition = "2024"
+rust-version = "1.85"
+# The header is part of the package so that cargo-c (`cargo cinstall`) can install it.
+include = ["/src/**/*.rs", "/tests/**/*.rs", "/include/libimgquant.h", "/COPYRIGHT", "/README.md"]
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-unknown-linux-gnu"]
+
+[lib]
+# cargo builds libimgquant.so / libimgquant.dylib / imgquant.dll and libimgquant.a / imgquant.lib.
+name = "imgquant"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[features]
+default = ["threads"]
+# Parallel quantization and remapping (libimgquant's `threads` feature).
+threads = ["libimgquant/threads"]
+
+[dependencies]
+# Default features come through this crate's own `threads` feature, so that
+# `--no-default-features` builds a single-threaded library.
+libimgquant = { path = "..", version = "3.0.0", default-features = false }
+
+# For `cargo cinstall` (cargo-c): installs the hand-written header and a
+# libimgquant.pc pkg-config file.
+[package.metadata.capi.header]
+enabled = false
+
+[package.metadata.capi.install.include]
+asset = [{ from = "include/libimgquant.h" }]
+
+[package.metadata.capi.library]
+name = "imgquant"
+
+[package.metadata.capi.pkg_config]
+name = "libimgquant"
+filename = "libimgquant"
+description = "Color quantization library (libimagequant 2.4.x compatible C API)"

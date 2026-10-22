@@ -1,0 +1,29 @@
+[package]
+name = "iqeval"
+version = "0.0.0"
+description = "Quality, size and speed evaluation harness for libimgquant (not published)"
+license = "BSD-2-Clause"
+edition = "2024"
+# butteraugli 0.9 needs 1.89; the library itself keeps its own MSRV.
+rust-version = "1.89"
+publish = false
+
+[features]
+default = ["threads", "butteraugli"]
+# Build the library with its `threads` feature (rayon). Without it, iqeval measures the
+# sequential build; the metrics themselves always run on rayon.
+threads = ["libimgquant/threads"]
+# Butteraugli scores (imazen's pure-Rust port, BSD-3-Clause). Also switchable at run time
+# with --no-butteraugli.
+butteraugli = ["dep:butteraugli"]
+
+[dependencies]
+libimgquant = { path = "../..", version = "3.0.0", default-features = false }
+png = "0.18"
+rayon = "1.10"
+ssimulacra2 = "0.5.1"
+butteraugli = { version = "0.9.3", optional = true }
+
+[dev-dependencies]
+# inflates IDAT in tests, to check the filter type of every row (already used by png)
+miniz_oxide = "0.8"

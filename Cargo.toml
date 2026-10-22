@@ -1,0 +1,47 @@
+[package]
+name = "libimgquant"
+version = "3.0.0"
+description = "Pure-Rust, BSD-licensed color quantizer: converts RGBA images to 8-bit palette images with alpha for small PNGs and GIFs. Based on libimagequant 2.4.1, improved with color quantization research"
+license = "BSD-2-Clause"
+readme = "README.md"
+documentation = "https://docs.rs/libimgquant"
+repository = "https://github.com/kiwina/libimgquant"
+homepage = "https://github.com/kiwina/libimgquant"
+categories = ["multimedia::images", "compression"]
+keywords = ["quantization", "palette", "pngquant", "png", "gif"]
+edition = "2024"
+rust-version = "1.85"
+# Only the library sources, its self-contained tests (synthetic images, no image files) and
+# the license and documentation files. examples/ (needs local PNG files) and tools/ stay out.
+include = ["/src/**/*.rs", "/tests/**/*.rs", "/COPYRIGHT", "/README.md", "/CHANGELOG.md"]
+
+[package.metadata.docs.rs]
+all-features = true
+# Nothing is platform-specific, so one target is enough.
+targets = ["x86_64-unknown-linux-gnu"]
+
+# tools/iqeval is an evaluation binary with its own (heavier, newer-MSRV) dependencies.
+# It is not published, and plain `cargo build`/`cargo test` here only build this crate.
+# capi is the C API (libimgquant.h, libimgquant.so/.a): `cargo build --release -p libimgquant-capi`.
+# cli is the `imgquant` command-line tool: `cargo build --release -p imgquant`.
+[workspace]
+members = ["tools/iqeval", "capi", "cli"]
+default-members = ["."]
+
+[features]
+default = ["threads"]
+# Parallelises Voronoi iteration, remapping and pixel conversion with rayon.
+# Results are deterministic for any thread count, but floating-point sums are
+# grouped differently, so output is not bit-identical to the sequential build.
+threads = ["dep:rayon"]
+
+[dependencies]
+rgb = { version = "0.8.50", default-features = false }
+rayon = { version = "1.10", optional = true }
+
+[dev-dependencies]
+png = "0.18"
+rayon = "1.10"
+
+[profile.release]
+debug = 1

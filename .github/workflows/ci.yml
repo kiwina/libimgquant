@@ -1,0 +1,165 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test the workspace
+        run: cargo test --workspace --locked
+      - name: Test the library without default features (single-threaded)
+        run: cargo test -p libimgquant --no-default-features --locked
+      - name: Test the C API without default features
+        run: cargo test -p libimgquant-capi --no-default-features --locked
+
+  msrv:
+    # The library and the C API keep MSRV 1.85; tools/iqeval needs 1.89 and is not built here.
+    name: MSRV 1.85 (library, C API)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Test the library and the C API
+        run: cargo test -p libimgquant -p libimgquant-capi --locked
+      - name: Build the library without default features
+        run: cargo build -p libimgquant --no-default-features --locked
+
+  lint:
+    name: Clippy and rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: rustfmt
+        run: cargo fmt --all --check
+      - name: Clippy (workspace, all targets)
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Clippy (library without default features)
+        run: cargo clippy -p libimgquant --all-targets --no-default-features --locked -- -D warnings
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo doc
+        run: cargo doc --no-deps --all-features -p libimgquant -p libimgquant-capi --locked
+
+  package:
+    # Builds the .crate files the way `cargo publish` would, from the packaged sources only.
+    name: Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo package
+        run: cargo package --workspace --exclude iqeval --locked
+      - name: List the package contents
+        run: |
+          cargo package --list -p libimgquant --locked
+          cargo package --list -p libimgquant-capi --locked
+          ls -l target/package/*.crate
+
+  capi:
+    # No C sources live in the repository: the header is checked through stdin.
+    name: C API header (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build the release library
+        run: cargo build --release -p libimgquant-capi --locked
+      - name: Check the header as C99
+        run: echo '#include "libimgquant.h"' | cc -std=c99 -Wall -Wextra -pedantic -Werror -x c -fsyntax-only -I capi/include -
+      - name: Check the header as C++17
+        run: echo '#include "libimgquant.h"' | c++ -std=c++17 -Wall -Wextra -pedantic -Werror -x c++ -fsyntax-only -I capi/include -
+      - name: List the built libraries
+        run: ls -l target/release/ | grep -i imgquant
+
+  cargo-c:
+    # Checks the [package.metadata.capi] settings: cargo cinstall into a temporary prefix, then
+    # compile and run a tiny program (from stdin) against the installed pkg-config file.
+    name: cargo-c install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-c
+      - name: cargo cinstall
+        run: cargo cinstall --release -p libimgquant-capi --locked --prefix="$RUNNER_TEMP/prefix" --libdir=lib
+      - name: Show the installed files
+        run: find "$RUNNER_TEMP/prefix" \( -type f -o -type l \) | sort
+      - name: Build and run a program against the installed library
+        run: |
+          export PKG_CONFIG_PATH="$RUNNER_TEMP/prefix/lib/pkgconfig"
+          pkg-config --cflags --libs libimgquant
+          printf '%s\n' \
+            '#include <libimgquant.h>' \
+            '#include <stdio.h>' \
+            'int main(void) {' \
+            '    liq_attr *attr = liq_attr_create();' \
+            '    if (!attr) return 1;' \
+            '    printf("libimgquant %d\n", liq_version());' \
+            '    liq_attr_destroy(attr);' \
+            '    return liq_version() == LIQ_VERSION ? 0 : 1;' \
+            '}' \
+            | cc -std=c99 -Wall -Werror -x c - $(pkg-config --cflags --libs libimgquant) -o "$RUNNER_TEMP/smoke"
+          LD_LIBRARY_PATH="$RUNNER_TEMP/prefix/lib" "$RUNNER_TEMP/smoke"
+
+  licenses:
+    name: cargo-deny (${{ matrix.checks }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        checks:
+          - advisories
+          - bans licenses sources
+    # A new advisory against a dependency should not block unrelated changes.
+    continue-on-error: ${{ matrix.checks == 'advisories' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check ${{ matrix.checks }}

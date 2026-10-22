@@ -1,0 +1,56 @@
+# cargo-deny configuration (https://embarkstudios.github.io/cargo-deny/), used by the
+# `licenses` job in .github/workflows/ci.yml. Run locally with `cargo deny check`.
+
+[graph]
+# Check every crate the workspace can pull in, including optional features (rayon) and
+# dev-only tools (tools/iqeval).
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+ignore = []
+
+[licenses]
+version = 2
+# Only permissive licenses. Everything not listed here is rejected, in particular GPL,
+# LGPL, AGPL and MPL: libimgquant must stay BSD-2-Clause and must never link copyleft code.
+# A crate licensed "X OR Y" passes when one of X and Y is listed.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "CC0-1.0",
+    "BSL-1.0",
+    "Unicode-3.0",
+]
+# Licenses on this list that no dependency uses today are fine.
+unused-allowed-license = "allow"
+confidence-threshold = 0.93
+# No exceptions: every dependency, including those of the dev-only tools/iqeval
+# (ssimulacra2, v_frame: BSD-2-Clause; butteraugli: BSD-3-Clause; yuvxyb, av-data: MIT),
+# is permissively licensed.
+exceptions = []
+
+[licenses.private]
+# Workspace crates with `publish = false` (tools/iqeval) are not checked themselves; their
+# dependencies still are.
+ignore = true
+
+[bans]
+# Two versions of a crate (e.g. syn 2 and 3 through iqeval's dependencies) only cost build time.
+multiple-versions = "warn"
+wildcards = "deny"
+# Path dependencies of unpublished workspace crates (tools/iqeval) need no version.
+allow-wildcard-paths = true
+deny = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
