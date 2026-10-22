@@ -1,0 +1,3 @@
+# Keep LF line endings in the repository and in every checkout, so tests that read
+# text files (the C header) behave the same on Windows.
+* text=auto eol=lf

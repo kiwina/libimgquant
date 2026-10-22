@@ -1061,7 +1061,9 @@ fn memory_ownership_with_c_free() {
 
 // --- version and header ---
 
-const HEADER: &str = include_str!("../include/libimgquant.h");
+/// The header with LF line endings, whatever line endings the checkout has.
+static HEADER: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| include_str!("../include/libimgquant.h").replace("\r\n", "\n"));
 
 #[test]
 fn version() {

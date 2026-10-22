@@ -27,6 +27,8 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 default = ["threads"]
 # Parallel quantization and remapping (libimgquant's `threads` feature).
 threads = ["libimgquant/threads"]
+# Marker feature that cargo-c (`cargo cinstall`) enables when it builds the C library.
+capi = []
 
 [dependencies]
 # Default features come through this crate's own `threads` feature, so that
