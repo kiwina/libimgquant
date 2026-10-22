@@ -1,4 +1,4 @@
-//! C API of [`libimgquant`], declared in `include/libimgquant.h`.
+//! C API of [`libimgquant`], declared in `assets/libimgquant.h`.
 //!
 //! The functions and types follow libimagequant 2.4.1's `libimagequant.h`, so C and C++
 //! programs written for libimagequant 2.4.x can use libimgquant by changing the include and

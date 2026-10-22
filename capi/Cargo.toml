@@ -12,7 +12,7 @@ keywords = ["quantization", "palette", "libimagequant", "ffi", "png"]
 edition = "2024"
 rust-version = "1.85"
 # The header is part of the package so that cargo-c (`cargo cinstall`) can install it.
-include = ["/src/**/*.rs", "/tests/**/*.rs", "/include/libimgquant.h", "/COPYRIGHT", "/README.md"]
+include = ["/src/**/*.rs", "/tests/**/*.rs", "/assets/libimgquant.h", "/COPYRIGHT", "/README.md"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -37,11 +37,12 @@ libimgquant = { path = "..", version = "3.0.0", default-features = false }
 
 # For `cargo cinstall` (cargo-c): installs the hand-written header and a
 # libimgquant.pc pkg-config file.
+# The header is hand-written: cargo-c installs assets/libimgquant.h as <includedir>/libimgquant.h
+# and points the pkg-config Cflags at <includedir>.
 [package.metadata.capi.header]
-enabled = false
-
-[package.metadata.capi.install.include]
-asset = [{ from = "include/libimgquant.h" }]
+name = "libimgquant"
+subdirectory = false
+generation = false
 
 [package.metadata.capi.library]
 name = "imgquant"

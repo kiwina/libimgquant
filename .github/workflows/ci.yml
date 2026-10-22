@@ -108,9 +108,9 @@ jobs:
       - name: Build the release library
         run: cargo build --release -p libimgquant-capi --locked
       - name: Check the header as C99
-        run: echo '#include "libimgquant.h"' | cc -std=c99 -Wall -Wextra -pedantic -Werror -x c -fsyntax-only -I capi/include -
+        run: echo '#include "libimgquant.h"' | cc -std=c99 -Wall -Wextra -pedantic -Werror -x c -fsyntax-only -I capi/assets -
       - name: Check the header as C++17
-        run: echo '#include "libimgquant.h"' | c++ -std=c++17 -Wall -Wextra -pedantic -Werror -x c++ -fsyntax-only -I capi/include -
+        run: echo '#include "libimgquant.h"' | c++ -std=c++17 -Wall -Wextra -pedantic -Werror -x c++ -fsyntax-only -I capi/assets -
       - name: List the built libraries
         run: ls -l target/release/ | grep -i imgquant
 

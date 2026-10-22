@@ -6,7 +6,7 @@
 [![CI](https://github.com/kiwina/libimgquant/actions/workflows/ci.yml/badge.svg)](https://github.com/kiwina/libimgquant/actions/workflows/ci.yml)
 
 A C API for [libimgquant](https://crates.io/crates/libimgquant), the pure-Rust, BSD-licensed color quantizer. The header
-[`include/libimgquant.h`](https://docs.rs/crate/libimgquant-capi/latest/source/include/libimgquant.h) has the same functions, types and values as
+[`assets/libimgquant.h`](https://docs.rs/crate/libimgquant-capi/latest/source/assets/libimgquant.h) has the same functions, types and values as
 libimagequant 2.4.x's `libimagequant.h`. C and C++ programs written for libimagequant 2.4.x
 can switch to libimgquant by changing two things:
 
@@ -45,11 +45,11 @@ Build notes:
 
 ```bash
 # shared library
-cc -I capi/include example.c -L target/release -limgquant -o example
+cc -I capi/assets example.c -L target/release -limgquant -o example
 
 # static library (Linux; `cargo rustc --release -p libimgquant-capi --crate-type staticlib
 # -- --print native-static-libs` prints the system libraries for other targets)
-cc -I capi/include example.c target/release/libimgquant.a -lpthread -ldl -lm -lrt -lutil -lgcc_s -o example
+cc -I capi/assets example.c target/release/libimgquant.a -lpthread -ldl -lm -lrt -lutil -lgcc_s -o example
 ```
 
 A minimal program:
@@ -170,7 +170,7 @@ This installs:
 
 | File | Notes |
 | --- | --- |
-| `libimgquant.h` | The hand-written header from `include/`, installed as an asset; cargo-c's own header handling (cbindgen) is turned off. |
+| `libimgquant.h` | The hand-written header from `assets/` (cargo-c's `header.generation = false`), installed directly in the include directory, which the pkg-config `Cflags` point to. |
 | `libimgquant.so.3.0.0`, with the links `libimgquant.so.3` and `libimgquant.so` | cargo-c sets the SONAME `libimgquant.so.3`. macOS and Windows get the platform's equivalents (`.dylib`; `imgquant.dll` with its import library). |
 | `libimgquant.a` | The static library. |
 | `libimgquant.pc` | pkg-config file: `pkg-config --cflags --libs libimgquant`. The `Libs.private` line lists the system libraries for static linking. |
