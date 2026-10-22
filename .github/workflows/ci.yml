@@ -1,9 +1,8 @@
 name: CI
 
+# Runs only when started by hand (Actions tab > CI > Run workflow, or `gh workflow run ci.yml`),
+# to save Actions minutes on this private repository.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
