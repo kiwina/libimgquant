@@ -27,6 +27,8 @@ allow = [
     "CC0-1.0",
     "BSL-1.0",
     "Unicode-3.0",
+    # target-lexicon, a build-time dependency of PyO3 (python/)
+    "Apache-2.0 WITH LLVM-exception",
 ]
 # Licenses on this list that no dependency uses today are fine.
 unused-allowed-license = "allow"

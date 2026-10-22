@@ -20,7 +20,8 @@ with published color quantization research.
 - **100% Rust**, `#![forbid(unsafe_code)]`. No C, no build script, no FFI. A separate crate
   adds a [C API](#c-api) compatible with libimagequant 2.4.x.
 - **Dependencies:** [`rgb`](https://crates.io/crates/rgb) for the pixel type, and optionally
-  [`rayon`](https://crates.io/crates/rayon) (feature `threads`, on by default).
+  [`rayon`](https://crates.io/crates/rayon) (feature `threads`, on by default) and
+  [`png`](https://crates.io/crates/png) (feature `png`).
 
 ## Usage
 
@@ -59,6 +60,42 @@ Images can be created from:
 Remap with `remapped`, `remap_into` (a contiguous buffer) or `remap_rows`. One
 `QuantizationResult` can remap several images with the same palette.
 
+### One palette for many images
+
+For animated GIFs, sprite sheets or tile sets, collect the colors of all images in a
+`Histogram` and quantize that. Each image is weighted as `quantize` would weight it, so
+colors that appear in only one frame still get palette entries, and every image is remapped
+to exactly the same palette:
+
+```rust
+let mut histogram = libimgquant::Histogram::new(&attr);
+for frame in &mut frames {
+    histogram.add_image(&attr, frame)?; // all with the same gamma
+}
+let mut result = histogram.quantize(&attr)?;
+result.set_dithering_level(1.0)?;
+let palette = result.palette_vec(); // e.g. the GIF's global color table
+for frame in &mut frames {
+    let (_, indices) = result.remapped(frame)?;
+    // ...
+}
+```
+
+`add_colors` adds colors with pixel counts from elsewhere, and `add_fixed_color` reserves
+palette entries, for example the one transparent color of a GIF.
+`examples/animated_gif.rs` turns PNG frames into an animated GIF this way:
+
+```bash
+cargo run --release --features png --example animated_gif -- out.gif frame*.png --compare
+```
+
+GIF has a single transparent index and no partial alpha, so the example makes pixels with
+alpha below 128 transparent and the rest opaque; `--compare` prints each frame's PSNR with
+the shared palette, with the first frame's palette and with a palette of its own. Six unrelated
+test images as frames (490x490 crops) reach 40.4 dB with the shared palette against 34.9 dB
+with the first frame's (49.0 dB with a palette each, but a 58% larger GIF); for the example's
+synthetic animation of similar frames, 52.7 dB against 52.5 dB (53.5 dB each).
+
 ### Writing PNGs
 
 For the smallest files, write each image twice and keep the smaller result: once with
@@ -72,9 +109,12 @@ filter type None, and once with per-row filters (the png crate's `Filter::MinEnt
 - **Avoid adaptive filtering on its own:** the png crate's default filter makes palette
   images 15–20% larger.
 
-The [crate documentation](https://docs.rs/libimgquant/latest/libimgquant/#writing-pngs) has
-an example with the `png` crate. In the repository, `examples/pngquant.rs` does all of this; it
-is a minimal pngquant built on the `png` crate:
+With the `png` feature, `libimgquant::png_io` does all of this: `decode` reads any PNG as
+RGBA with its gamma, `encode_indexed` writes the palette image, and `compress_png` converts a
+PNG file in one call, like pngquant. Without the feature, the
+[crate documentation](https://docs.rs/libimgquant/latest/libimgquant/#writing-pngs) has an
+example with the `png` crate, and `examples/pngquant.rs` in the repository is a minimal
+pngquant built on it:
 
 ```bash
 cargo run --release --example pngquant -- input.png output.png --quality 65-90
@@ -86,6 +126,8 @@ cargo run --release --example pngquant -- input.png output.png --quality 65-90
   same for any number of threads. Use `default-features = false` for a single-threaded build
   without the rayon dependency; its output can differ from the threaded build in the last
   bits (see [Threads](#threads)).
+- `png`: the `png_io` module (PNG decoding and size-conscious palette PNG encoding with the
+  [png](https://crates.io/crates/png) crate). The `imgquant` command-line tool uses it.
 
 ## Command-line tool
 
@@ -100,6 +142,52 @@ imgquant 64 --nofs --ext .png --force *.png  # 64 colors, no dithering, in place
 
 On the 22-image test set, the default settings shrink the PNGs to 30% of their size in
 3.4 s (14 threads). See [cli/README.md](cli/README.md) for all options.
+
+## JavaScript and WebAssembly
+
+The npm package [`libimgquant`](https://www.npmjs.com/package/libimgquant) (directory `wasm/`)
+is this library compiled to WebAssembly, for browsers and Node.js 18 or later: one ES module
+with TypeScript types and no dependencies. The `.wasm`, PNG codec included, is 475 KB
+(185 KB gzipped).
+
+```bash
+npm install libimgquant
+```
+
+```js
+import { compressPng, quantize, quantizeFrames } from "libimgquant";
+
+const png = compressPng(inputPng, { quality: [65, 90] }); // like pngquant
+const { palette, indices } = quantize(imageData.data, width, height, { maxColors: 64 });
+const { palette: shared, frames } = quantizeFrames(rgbaFrames, width, height); // one palette for all frames
+```
+
+Options are `maxColors`, `speed`, `quality` (`{min, max}` or `[min, max]`), `dithering` (0-1,
+default 1) and `profile`; errors are thrown as `Error`. The WebAssembly build is
+single-threaded. Build it with `wasm/build.sh`; see [wasm/npm/README.md](wasm/npm/README.md).
+
+## Python
+
+The [`libimgquant`](https://pypi.org/project/libimgquant/) package (directory `python/`, built
+with PyO3 and maturin) has one wheel per platform for CPython 3.9 and newer (stable ABI) and no
+run-time dependencies:
+
+```bash
+pip install libimgquant
+```
+
+```python
+import libimgquant
+
+small = libimgquant.compress_png(open("photo.png", "rb").read(), quality=(65, 90))
+
+result = libimgquant.quantize(rgba, width, height, max_colors=64)  # bytes or a uint8 numpy array
+result.palette, result.indices, result.quality
+```
+
+`quantize_frames` computes one palette for several images, and `quantize_image` takes and
+returns Pillow images. Every function releases the GIL while it works. See
+[python/README.md](python/README.md).
 
 ## Profiles
 

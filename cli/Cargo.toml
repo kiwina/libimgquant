@@ -22,7 +22,10 @@ default = ["threads"]
 threads = ["libimgquant/threads", "dep:rayon"]
 
 [dependencies]
-libimgquant = { path = "..", version = "3.0.0", default-features = false }
-png = "0.18"
+libimgquant = { path = "..", version = "3.0.0", default-features = false, features = ["png"] }
 # already a dependency of libimgquant's `threads` feature; used only to size the thread pool
 rayon = { version = "1.10", optional = true }
+
+[dev-dependencies]
+# tests/cli.rs writes and reads PNGs
+png = "0.18"

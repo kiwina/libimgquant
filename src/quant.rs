@@ -16,8 +16,9 @@ use crate::reorder::reorder_palette;
 
 /// Result of [`Attributes::quantize`]: a palette that can be used to remap images.
 ///
-/// One result can remap several images, for example the frames of an animation that should
-/// share one palette.
+/// One result can remap several images. Each remapping can fine-tune the palette for its
+/// image (see [`palette`](Self::palette)); for frames that must share exactly one palette, such
+/// as a GIF's global color table, quantize a [`Histogram`](crate::Histogram) of all frames.
 ///
 /// ```
 /// use libimgquant::RGBA;
@@ -54,6 +55,9 @@ pub struct QuantizationResult {
     last_index_transparent: bool,
     reorder_palette: bool,
     profile: Profile,
+    /// Every remapping uses exactly [`palette`](QuantizationResult::palette): no per-image
+    /// k-means update and no reordering, so frames can share one color table.
+    shared_palette: bool,
 }
 
 #[derive(Clone)]
@@ -237,12 +241,14 @@ fn find_best_palette(
     Ok((best.expect("at least one palette was kept"), least_error))
 }
 
+/// Searches the palette for `hist` (from which colors close to `fixed_colors` were removed),
+/// for colors in `gamma`.
 pub(crate) fn pngquant_quantize(
     hist: &mut HistogramInternal,
     attr: &Attributes,
-    image: &Image<'_>,
+    fixed_colors: &[FPixel],
+    gamma: f64,
 ) -> Result<QuantizationResult, Error> {
-    let fixed_colors = &image.fixed_colors[..];
     // no point having perfect match with imperfect colors (ignorebits > 0)
     let fast_palette = attr.fast_palette || hist.ignorebits > 0;
     let few_input_colors = hist.items.len() + fixed_colors.len() <= attr.max_colors as usize;
@@ -366,7 +372,7 @@ pub(crate) fn pngquant_quantize(
         int_palette: None,
         remapping: None,
         dither_level: 0.0,
-        gamma: image.gamma,
+        gamma,
         palette_error,
         min_posterization_output: attr.min_posterization_output,
         use_dither_map: attr.use_dither_map,
@@ -374,10 +380,16 @@ pub(crate) fn pngquant_quantize(
         last_index_transparent: attr.last_index_transparent,
         reorder_palette: attr.reorder_palette,
         profile: attr.profile,
+        shared_palette: false,
     })
 }
 
 impl QuantizationResult {
+    /// Makes every remapping use the same palette (see [`crate::Histogram`]).
+    pub(crate) fn set_shared_palette(&mut self) {
+        self.shared_palette = true;
+    }
+
     /// Sets the dithering level for subsequent remappings: 0 (none) to 1 (full).
     /// The default is 0, as in libimagequant 2.4.1.
     ///
@@ -561,7 +573,15 @@ impl QuantizationResult {
             let generate_dither_map = self.use_dither_map && image.edges.is_some() && image.dither_map.is_none();
             if generate_dither_map {
                 // If dithering (with dither map) is required, this image is used to find areas that require dithering
-                remapping_error = remap_to_palette(image, rows, &mut palette, self.fast_palette, self.profile);
+                // A shared palette must not be moved towards this image's colors.
+                let mut scratch;
+                let map = if self.shared_palette {
+                    scratch = palette.clone();
+                    &mut scratch
+                } else {
+                    &mut palette
+                };
+                remapping_error = remap_to_palette(image, rows, map, self.fast_palette, self.profile);
                 update_dither_map(rows, image);
             }
 
@@ -593,7 +613,7 @@ impl QuantizationResult {
             palette_error = f64::from(remapping_error);
         }
 
-        if self.profile == Profile::Improved && !self.last_index_transparent {
+        if self.profile == Profile::Improved && !self.last_index_transparent && !self.shared_palette {
             reorder_palette(&mut int_palette, rows, self.reorder_palette);
         }
 

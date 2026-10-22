@@ -34,6 +34,8 @@ jobs:
         run: cargo test -p libimgquant --no-default-features --locked
       - name: Test the C API without default features
         run: cargo test -p libimgquant-capi --no-default-features --locked
+      - name: Test the library with only the png feature
+        run: cargo test -p libimgquant --no-default-features --features png --locked
 
   msrv:
     # The library and the C API keep MSRV 1.85; tools/iqeval needs 1.89 and is not built here.
@@ -63,6 +65,15 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Clippy (library without default features)
         run: cargo clippy -p libimgquant --all-targets --no-default-features --locked -- -D warnings
+      - name: Clippy (library, all features and png only)
+        run: |
+          cargo clippy -p libimgquant --all-targets --all-features --locked -- -D warnings
+          cargo clippy -p libimgquant --all-targets --no-default-features --features png --locked -- -D warnings
+      - name: rustfmt and clippy (wasm/ and python/, separate workspaces)
+        run: |
+          for dir in wasm python; do
+            (cd "$dir" && cargo fmt --check && cargo clippy --all-targets --locked -- -D warnings)
+          done
 
   docs:
     name: Docs
@@ -146,6 +157,89 @@ jobs:
             | cc -std=c99 -Wall -Werror -x c - $(pkg-config --cflags --libs libimgquant) -o "$RUNNER_TEMP/smoke"
           LD_LIBRARY_PATH="$RUNNER_TEMP/prefix/lib" "$RUNNER_TEMP/smoke"
 
+  wasm:
+    # The npm package `libimgquant` (wasm/): native option tests, the wasm32 build with the
+    # wasm-bindgen CLI pinned to wasm/Cargo.lock, and Node tests of the built package.
+    name: WebAssembly / npm package
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wasm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wasm
+      - name: Read the wasm-bindgen version from Cargo.lock
+        id: wbg
+        run: echo "version=$(awk '$0 == "name = \"wasm-bindgen\"" { getline; gsub(/[^0-9.]/, ""); print; exit }' Cargo.lock)" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@${{ steps.wbg.outputs.version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clippy for wasm32
+        run: cargo clippy --locked --target wasm32-unknown-unknown -- -D warnings
+      - name: Rust tests (option parsing, native)
+        run: cargo test --locked
+      - name: Build the npm package
+        run: ./build.sh
+      - name: Node 24 tests
+        run: node --test tests/package.test.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Node 18 tests (oldest supported)
+        run: node --test tests/package.test.mjs
+      - name: npm pack (dry run)
+        run: npm pack --dry-run
+        working-directory: wasm/pkg
+
+  python:
+    # The Python package `libimgquant` (python/, its own Cargo workspace): builds the abi3 wheel
+    # and runs pytest against the installed wheel, on the oldest and newest supported Python.
+    name: Python ${{ matrix.python }} (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: "3.9" }
+          - { os: ubuntu-latest, python: "3.14" }
+          - { os: macos-latest, python: "3.14" }
+          - { os: windows-latest, python: "3.14" }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: python
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: astral-sh/setup-uv@v6
+      - name: Build the abi3 wheel
+        run: uvx maturin build --release --locked --out dist
+      - name: Install the wheel into a fresh venv
+        run: |
+          uv venv --python "$(python -c 'import sys; print(sys.executable)')" .venv
+          uv pip install --python .venv dist/*.whl pytest Pillow numpy
+      - name: pytest
+        working-directory: python/tests
+        run: uv run --no-project --python ../.venv python -m pytest -q
+      - name: Build the sdist
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14'
+        run: uvx maturin sdist --out dist
+
   licenses:
     name: cargo-deny (${{ matrix.checks }})
     runs-on: ubuntu-latest
@@ -162,3 +256,12 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check ${{ matrix.checks }}
+      # wasm/ and python/ are separate workspaces with their own lockfiles
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check ${{ matrix.checks }}
+          manifest-path: wasm/Cargo.toml
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check ${{ matrix.checks }}
+          manifest-path: python/Cargo.toml

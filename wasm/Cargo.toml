@@ -1,0 +1,35 @@
+[package]
+name = "libimgquant-wasm"
+version = "3.0.0"
+description = "WebAssembly build of libimgquant for the npm package `libimgquant`"
+license = "BSD-2-Clause"
+repository = "https://github.com/kiwina/libimgquant"
+edition = "2024"
+rust-version = "1.85"
+# Published to npm as `libimgquant` (see build.sh), not to crates.io.
+publish = false
+
+[lib]
+# cdylib for wasm-bindgen; rlib so that `cargo test` runs the option parsing natively.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Single-threaded: wasm32-unknown-unknown has no threads without SharedArrayBuffer setup.
+libimgquant = { path = "..", default-features = false, features = ["png"] }
+# already a dependency of libimgquant; used to view the input bytes as pixels without a copy
+rgb = { version = "0.8.50", default-features = false }
+# build.sh requires the wasm-bindgen CLI of exactly the version in Cargo.lock
+wasm-bindgen = "0.2.129"
+js-sys = "0.3.106"
+
+[dev-dependencies]
+# a truecolor PNG to compress in the tests
+png = "0.18"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+
+# Not part of the root workspace: `cargo test --workspace` there doesn't build this crate.
+[workspace]

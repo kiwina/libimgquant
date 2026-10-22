@@ -1,0 +1,48 @@
+{
+  "name": "libimgquant",
+  "version": "3.0.0",
+  "description": "Color quantizer for small PNGs and GIFs: RGBA to 8-bit palette with alpha, and pngquant-style PNG compression. Pure Rust compiled to WebAssembly, BSD-licensed, for browsers and Node.js.",
+  "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kiwina/libimgquant.git",
+    "directory": "wasm"
+  },
+  "homepage": "https://github.com/kiwina/libimgquant#readme",
+  "bugs": "https://github.com/kiwina/libimgquant/issues",
+  "keywords": [
+    "pngquant",
+    "png",
+    "quantization",
+    "palette",
+    "compression",
+    "gif",
+    "image",
+    "wasm",
+    "webassembly"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "node": "./node.js",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./index.d.ts",
+  "files": [
+    "index.js",
+    "node.js",
+    "index.d.ts",
+    "libimgquant.js",
+    "libimgquant.d.ts",
+    "libimgquant_bg.wasm",
+    "libimgquant_bg.wasm.d.ts",
+    "LICENSE",
+    "THIRD-PARTY-LICENSES.txt"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

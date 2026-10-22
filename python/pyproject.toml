@@ -1,0 +1,58 @@
+[build-system]
+# 1.9.4 builds PyO3 extension modules without PyO3's deprecated `extension-module` feature.
+requires = ["maturin>=1.9.4,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "libimgquant"
+version = "3.0.0"
+description = "Pure-Rust, BSD-licensed color quantizer: RGBA images to 8-bit palette images with alpha, for small PNGs and GIFs"
+readme = "README.md"
+license = "BSD-2-Clause"
+# A copy of ../COPYRIGHT: the sdist puts the library crate's COPYRIGHT at its root already.
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "kiwina" }]
+keywords = ["quantization", "palette", "png", "gif", "pngquant", "libimagequant", "image compression"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Rust",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+# quantize_image() takes and returns Pillow images; nothing else needs Pillow.
+pillow = ["Pillow>=9.1"]
+test = ["pytest>=8", "Pillow>=9.1", "numpy>=1.22"]
+
+[project.urls]
+Homepage = "https://github.com/kiwina/libimgquant"
+Repository = "https://github.com/kiwina/libimgquant"
+Documentation = "https://github.com/kiwina/libimgquant/tree/main/python#readme"
+Changelog = "https://github.com/kiwina/libimgquant/blob/main/CHANGELOG.md"
+Issues = "https://github.com/kiwina/libimgquant/issues"
+
+[tool.maturin]
+# Mixed project: python/libimgquant/ is the package, the native module is libimgquant._libimgquant.
+module-name = "libimgquant._libimgquant"
+python-source = "."
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+# as rustfmt.toml for the Rust code
+line-length = 120

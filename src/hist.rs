@@ -255,18 +255,21 @@ fn sort_by_bucket<W: Copy>(
     sorted
 }
 
-/// Converts colors with their final weights to histogram items.
-fn make_histogram(
+/// Limit perceptual weight to 1/10th of the image surface area to prevent
+/// a single color from dominating all others.
+fn max_perceptual_weight(cols: usize, rows: usize) -> f32 {
+    0.1f32 * cols as f32 * rows as f32
+}
+
+/// Converts colors with their final weights to histogram items, limiting each weight to
+/// `max_perceptual_weight`.
+pub(crate) fn make_histogram(
     entries: impl Iterator<Item = (u32, f32)>,
     len: usize,
     lut: &ColorLut,
-    cols: usize,
-    rows: usize,
+    max_perceptual_weight: f32,
     ignorebits: u32,
 ) -> HistogramInternal {
-    // Limit perceptual weight to 1/10th of the image surface area to prevent
-    // a single color from dominating all others.
-    let max_perceptual_weight = 0.1f32 * cols as f32 * rows as f32;
     let mut total_weight = 0f64;
     let mut items = Vec::with_capacity(len);
     for (color, weight) in entries {
@@ -515,8 +518,7 @@ fn compat_histogram_sequential(
         sorted.into_iter(),
         len,
         image.lut(),
-        cols,
-        rows,
+        max_perceptual_weight(cols, rows),
         ignorebits,
     ))
 }
@@ -691,8 +693,7 @@ fn compat_histogram_partitioned(
         parts.into_iter().flatten(),
         colors,
         image.lut(),
-        cols,
-        rows,
+        max_perceptual_weight(cols, rows),
         ignorebits,
     ))
 }
@@ -773,6 +774,16 @@ fn merge_partition(
 /// rounded while summing, so a color's weight can also differ in the last bits, and is not
 /// stuck at 2^24 pixels like an `f32` sum.
 fn improved_histogram(image: &Image<'_>, ignorebits: u32, maxcolors: u32, hash_size: u32) -> Option<HistogramInternal> {
+    let entries = improved_counts(image, ignorebits, maxcolors, hash_size)?;
+    let len = entries.len();
+    let entries = entries.into_iter().map(|(color, w)| (color, (w as f64 / 510.0) as f32));
+    let max_weight = max_perceptual_weight(image.width, image.height);
+    Some(make_histogram(entries, len, image.lut(), max_weight, ignorebits))
+}
+
+/// The colors of the image with their exact weights in units of 1/510 (see [`count_band`]),
+/// in the order of 2.4.1's table, or None if the image has more than `maxcolors` colors.
+fn improved_counts(image: &Image<'_>, ignorebits: u32, maxcolors: u32, hash_size: u32) -> Option<Vec<(u32, u64)>> {
     let (cols, rows) = (image.width, image.height);
     let maxcolors = maxcolors as usize;
     let posterize = Posterize::new(ignorebits);
@@ -792,15 +803,45 @@ fn improved_histogram(image: &Image<'_>, ignorebits: u32, maxcolors: u32, hash_s
     if colors > maxcolors {
         return None;
     }
-    let entries = partitions
-        .into_iter()
-        .flatten()
-        .map(|(color, w)| (color, (w as f64 / 510.0) as f32));
-    Some(make_histogram(entries, colors, image.lut(), cols, rows, ignorebits))
+    Some(partitions.into_iter().flatten().collect())
+}
+
+/// Weight units per pixel of [`count_image_colors`]: 2.4.1's importance boosts are
+/// multiples of 1/510.
+pub(crate) const WEIGHT_UNITS: u64 = 510;
+
+/// All colors of the image (transparent pixels as color 0, nothing posterized) with their
+/// importance-weighted pixel counts in units of 1/[`WEIGHT_UNITS`], each limited to a tenth
+/// of the image area like a single-image histogram. Sorted by color.
+pub(crate) fn count_image_colors(image: &mut Image<'_>, attr: &Attributes) -> Vec<(u32, u64)> {
+    if image.noise.is_none() && attr.use_contrast_maps {
+        image.contrast_maps();
+    }
+    let surface = (image.width * image.height) as u64;
+    let hash_size = hash_size(u32::MAX, surface, 0);
+    let mut counts = improved_counts(image, 0, u32::MAX, hash_size).expect("no color limit");
+    image.noise = None;
+    // a tenth of the area, exactly: 0.1 * 510 units per pixel
+    let max_weight = surface * WEIGHT_UNITS / 10;
+    for (_, w) in &mut counts {
+        *w = cmin(*w, max_weight);
+    }
+    counts.sort_unstable_by_key(|&(color, _)| color);
+    counts
+}
+
+/// The histogram key of `color` (packed little-endian, transparent colors as 0), posterized
+/// by `ignorebits`.
+pub(crate) fn color_key(color: RGBA, ignorebits: u32) -> u32 {
+    Posterize::new(ignorebits).color(color)
 }
 
 /// Fixed colors are always included in the palette, so it would be wasteful to duplicate them in the palette from the histogram.
-fn remove_fixed_colors_from_histogram(hist: &mut HistogramInternal, fixed_colors: &[FPixel], target_mse: f32) {
+pub(crate) fn remove_fixed_colors_from_histogram(
+    hist: &mut HistogramInternal,
+    fixed_colors: &[FPixel],
+    target_mse: f32,
+) {
     if fixed_colors.is_empty() {
         return;
     }
@@ -978,8 +1019,7 @@ mod tests {
             entries.into_iter(),
             len,
             image.lut(),
-            image.width,
-            image.height,
+            max_perceptual_weight(image.width, image.height),
             ignorebits,
         ))
     }

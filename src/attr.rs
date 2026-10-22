@@ -566,7 +566,7 @@ impl Attributes {
     pub fn quantize(&self, image: &mut Image<'_>) -> Result<QuantizationResult, Error> {
         image.ensure_color_space(self.profile.color_space());
         let mut hist = get_histogram(image, self)?;
-        pngquant_quantize(&mut hist, self, image)
+        pngquant_quantize(&mut hist, self, &image.fixed_colors, image.gamma)
     }
 }
 

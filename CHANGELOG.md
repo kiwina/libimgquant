@@ -12,8 +12,8 @@ compared with libimagequant 2.4.1, the BSD-licensed C library it is based on.
 
 - **Pure Rust:** a rewrite of libimagequant 2.4.1 (tag `2.4.1`, commit
   `976e021cda07c14cd36630f611a5a6eb2cafc28e`) in Rust, `#![forbid(unsafe_code)]`, with no C
-  code, no build script and no FFI. Dependencies: `rgb`, and `rayon` for the optional
-  `threads` feature (on by default). MSRV 1.85.
+  code, no build script and no FFI. Dependencies: `rgb`, `rayon` for the optional
+  `threads` feature (on by default) and `png` for the optional `png` feature. MSRV 1.85.
 - **License:** BSD-2-Clause, plus Jef Poskanzer's original permissive notice. No code from
   libimagequant 2.5 or later (GPL-3) was used.
 - **Two profiles:** `Profile::Improved` (the default) uses the new algorithms below.
@@ -54,6 +54,18 @@ and CIEDE2000, and gives 6% smaller PNGs (README, "Results").
 - Remapping into a new buffer (`remapped`), a contiguous buffer (`remap_into`) or separate
   rows (`remap_rows`); one result can remap several images.
 - Log callbacks are closures.
+- `Histogram`: one palette for several images (animation frames, sprite sheets). Images are
+  added with `add_image`, weighted as `quantize` weights a single image (contrast maps, each
+  color limited to a tenth of the image's area); colors with pixel counts with
+  `add_colors` (`HistogramEntry`); fixed colors with `add_fixed_color`. `quantize` returns a
+  result that remaps every image to exactly the same palette. All colors must have one
+  gamma. The result is the same for any number of threads.
+- Feature `png` (off by default): the `png_io` module decodes any PNG to RGBA with its gamma
+  (`decode`), writes palette PNGs with the smallest bit depth, a trimmed tRNS chunk and the
+  smaller of an unfiltered and a filtered encoding (`encode_indexed`), and converts a PNG in
+  one call (`compress_png`). The command-line tool uses it.
+- `examples/animated_gif.rs`: PNG frames (or a synthetic animation) to an animated GIF with
+  one palette, using `Histogram` and the `gif` crate (a development dependency only).
 
 ### C API (`libimgquant-capi`, new crate)
 
@@ -79,6 +91,19 @@ and CIEDE2000, and gives 6% smaller PNGs (README, "Results").
 - Reads every PNG color type and bit depth, keeps the input's gamma, writes the smallest
   bit depth and the smaller of an unfiltered and a filtered encoding, and writes files
   atomically. Reads standard input and writes standard output with `-`.
+
+### npm package (`libimgquant`, new, `wasm/`)
+
+- WebAssembly build for browsers and Node.js 18+, with TypeScript types and no
+  dependencies: `quantize`, `compressPng` (PNG in, smaller indexed PNG out) and
+  `quantizeFrames` (one palette for many frames). 475 KB `.wasm`, 185 KB gzipped.
+
+### Python package (`libimgquant`, new, `python/`)
+
+- PyO3 bindings with stable-ABI wheels for CPython 3.9+: `quantize`, `compress_png`,
+  `quantize_frames` and the Pillow helper `quantize_image`. Accepts bytes, bytearray,
+  memoryview and numpy arrays; releases the GIL while working; raises
+  `QualityTooLowError` when the minimum quality can't be reached.
 
 ### Bug fixes (both profiles)
 

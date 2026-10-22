@@ -34,14 +34,23 @@ default = ["threads"]
 # Results are deterministic for any thread count, but floating-point sums are
 # grouped differently, so output is not bit-identical to the sequential build.
 threads = ["dep:rayon"]
+# The `png_io` module: decodes any PNG and writes small palette PNGs, with the png crate.
+png = ["dep:png"]
 
 [dependencies]
 rgb = { version = "0.8.50", default-features = false }
 rayon = { version = "1.10", optional = true }
+png = { version = "0.18", optional = true }
 
 [dev-dependencies]
 png = "0.18"
 rayon = "1.10"
+# examples/animated_gif.rs; without default features it has no quantizer of its own
+gif = { version = "0.14", default-features = false, features = ["std"] }
+
+[[example]]
+name = "animated_gif"
+required-features = ["png"]
 
 [profile.release]
 debug = 1

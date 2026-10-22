@@ -50,7 +50,7 @@ pub struct Image<'a> {
     pub(crate) dither_map: Option<Box<[u8]>>,
     pub(crate) min_opaque_val: f32,
     pub(crate) fixed_colors: Vec<FPixel>,
-    fixed_rgba: Vec<RGBA>,
+    pub(crate) fixed_rgba: Vec<RGBA>,
 }
 
 fn should_use_low_memory(pixels: usize, low_memory_hint: bool) -> bool {

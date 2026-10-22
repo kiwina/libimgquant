@@ -48,6 +48,9 @@
 //!    index, optionally with Floyd-Steinberg dithering. One result can remap several images
 //!    with the same palette.
 //!
+//! For one palette that fits several images, such as the frames of an animated GIF, collect
+//! their colors in a [`Histogram`] and quantize that instead of a single image.
+//!
 //! # Quality
 //!
 //! [`Attributes::set_quality`] takes a minimum and a target quality from 0 to 100. The
@@ -74,14 +77,18 @@
 //!   the last bits from the build without `threads`, which sums in exactly the original order.
 //!   Use `default-features = false` for a single-threaded build without the rayon
 //!   dependency.
+//! - **`png`**: the `png_io` module, which decodes any PNG to RGBA and writes palette PNGs
+//!   as described under [Writing PNGs](#writing-pngs), with the
+//!   [png](https://crates.io/crates/png) crate. `png_io::compress_png` converts a PNG file
+//!   in one call.
 //!
 //! Output is deterministic and identical on every platform: dithering noise comes from the
 //! crate's own seeded generator, sorting uses a fixed tie order and hashing is little-endian.
 //!
 //! # Writing PNGs
 //!
-//! This crate only computes the palette and the indices; any PNG encoder can write them.
-//! For the smallest files:
+//! This crate computes the palette and the indices; any PNG encoder can write them, and with
+//! the `png` feature, `png_io::encode_indexed` does as follows. For the smallest files:
 //!
 //! - **Bit depth:** pack palettes of up to 2, 4 or 16 colors into 1, 2 or 4 bits per pixel.
 //! - **tRNS:** stop the chunk after the last translucent entry. Translucent entries always
@@ -163,11 +170,14 @@ mod blur;
 mod dithermap;
 mod error;
 mod hist;
+mod histogram;
 mod image;
 mod kmeans;
 mod mediancut;
 mod nearest;
 mod pal;
+#[cfg(feature = "png")]
+pub mod png_io;
 mod quant;
 mod remap;
 mod reorder;
@@ -175,6 +185,7 @@ mod rng;
 
 pub use attr::{Attributes, Profile};
 pub use error::Error;
+pub use histogram::{Histogram, HistogramEntry};
 pub use image::{Image, RowCallback};
 pub use quant::QuantizationResult;
 

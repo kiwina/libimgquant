@@ -5,7 +5,6 @@
 #![forbid(unsafe_code)]
 
 mod args;
-mod pngio;
 
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
@@ -15,6 +14,7 @@ use std::process::ExitCode;
 use std::time::Instant;
 
 use args::{Command, Options};
+use libimgquant::png_io::{self, DecodedPng, PngError};
 
 /// A file could not be read, decoded or written.
 const EXIT_IO: u8 = 1;
@@ -132,10 +132,13 @@ fn convert(opts: &Options, input: &Path) -> Result<(), Failure> {
     } else {
         fs::read(input).map_err(|e| Failure::new(EXIT_IO, format!("{name}: {e}")))?
     };
-    let decoded = pngio::decode(&data).map_err(|e| Failure::new(EXIT_IO, format!("{name}: not a valid PNG: {e}")))?;
+    let decoded = png_io::decode(&data).map_err(|e| match e {
+        PngError::Decode(e) => Failure::new(EXIT_IO, format!("{name}: not a valid PNG: {e}")),
+        e => Failure::new(EXIT_IO, format!("{name}: {e}")),
+    })?;
     if opts.verbose {
-        let gamma = match decoded.output_gama() {
-            Some(g) => format!("gamma {}", f64::from(g.into_scaled()) / 100_000.0),
+        let gamma = match decoded.gamma {
+            Some(g) => format!("gamma {g}"),
             None => "sRGB".into(),
         };
         eprintln!(
@@ -159,8 +162,14 @@ fn convert(opts: &Options, input: &Path) -> Result<(), Failure> {
     })?;
     let quantize_time = quantize_start.elapsed();
 
-    let png = pngio::encode_indexed(decoded.width, decoded.height, &palette, &indices, decoded.output_gama())
-        .map_err(|e| Failure::new(EXIT_IO, format!("{name}: {e}")))?;
+    let png =
+        png_io::encode_indexed(&palette, &indices, decoded.width, decoded.height, decoded.gamma).map_err(|e| {
+            let e: &dyn std::fmt::Display = match &e {
+                PngError::Encode(e) => e,
+                e => e,
+            };
+            Failure::new(EXIT_IO, format!("{name}: {e}"))
+        })?;
     if opts.verbose {
         eprintln!(
             "  {} colors, quality {} (speed {}, dithering {}), quantized in {:.1} ms",
@@ -210,7 +219,7 @@ fn convert(opts: &Options, input: &Path) -> Result<(), Failure> {
 /// Quantizes and remaps the image: the palette, one index per pixel, and the quality.
 type Quantized = (Vec<libimgquant::RGBA>, Vec<u8>, Option<u8>);
 
-fn quantize(opts: &Options, decoded: &pngio::Decoded) -> Result<Quantized, libimgquant::Error> {
+fn quantize(opts: &Options, decoded: &DecodedPng) -> Result<Quantized, libimgquant::Error> {
     let mut attr = libimgquant::new();
     attr.set_profile(opts.profile);
     attr.set_speed(opts.speed)?;
@@ -222,12 +231,7 @@ fn quantize(opts: &Options, decoded: &pngio::Decoded) -> Result<Quantized, libim
     if opts.verbose {
         attr.set_log_callback(|_, message| eprintln!("{message}"));
     }
-    let mut image = attr.new_image_borrowed(
-        &decoded.pixels,
-        decoded.width,
-        decoded.height,
-        decoded.quantizer_gamma(),
-    )?;
+    let mut image = attr.new_image_borrowed(&decoded.pixels, decoded.width, decoded.height, decoded.image_gamma())?;
     let mut result = attr.quantize(&mut image)?;
     result.set_dithering_level(opts.dithering)?;
     let (palette, indices) = result.remapped(&mut image)?;

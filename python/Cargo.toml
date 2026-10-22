@@ -1,0 +1,32 @@
+[package]
+name = "libimgquant-python"
+version = "3.0.0"
+description = "Python bindings of libimgquant (the `libimgquant` package on PyPI), built with PyO3 and maturin"
+license = "BSD-2-Clause"
+repository = "https://github.com/kiwina/libimgquant"
+homepage = "https://github.com/kiwina/libimgquant"
+edition = "2024"
+rust-version = "1.85"
+# Published to PyPI as a wheel (maturin), never to crates.io.
+publish = false
+
+# Its own workspace: the root workspace (library, C API, CLI) does not build PyO3, and
+# this crate keeps its own Cargo.lock.
+[workspace]
+
+[lib]
+# The native module is `libimgquant._libimgquant`; python/libimgquant/__init__.py re-exports it.
+name = "_libimgquant"
+crate-type = ["cdylib"]
+
+[dependencies]
+libimgquant = { path = "..", version = "3.0.0", features = ["threads", "png"] }
+# abi3-py39: one wheel per platform for CPython 3.9 and every later version.
+pyo3 = { version = "0.30.1", features = ["abi3-py39"] }
+# The pixel type of libimgquant, for reading RGBA bytes as pixels without a copy.
+rgb = { version = "0.8.50", default-features = false }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
