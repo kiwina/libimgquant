@@ -30,7 +30,7 @@ sed 's/<year> <copyright holders>/The Rust Project Contributors/' \
 # "name vX.Y.Z<tab>directory" of every crates.io package
 paths=$(cargo metadata --manifest-path "$manifest" --format-version 1 --locked |
     jq -r '.packages[] | select(.source != null) | "\(.name) v\(.version)\t\(.manifest_path | sub("/Cargo.toml$"; ""))"')
-cargo tree --manifest-path "$manifest" --locked -e normal,no-proc-macro --target "$target" --prefix none \
+cargo tree --color never --manifest-path "$manifest" --locked -e normal,no-proc-macro --target "$target" --prefix none \
     -f '{p}|{l}' | sed 's/ (\*)$//' | sort -u | while IFS='|' read -r package license; do
     dir=$(printf '%s\n' "$paths" | awk -F '\t' -v p="$package" '$1 == p { print $2; exit }')
     [ -n "$dir" ] || continue
