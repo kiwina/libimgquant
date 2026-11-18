@@ -4,7 +4,7 @@
 [![docs.rs](https://img.shields.io/docsrs/libimgquant)](https://docs.rs/libimgquant)
 [![License: BSD-2-Clause](https://img.shields.io/crates/l/libimgquant.svg)](#license)
 [![MSRV 1.85](https://img.shields.io/badge/MSRV-1.85-blue.svg)](#rust)
-<!-- CI badge, once the repository is public: [![CI](https://github.com/kiwina/libimgquant/actions/workflows/ci.yml/badge.svg)](https://github.com/kiwina/libimgquant/actions/workflows/ci.yml) -->
+[![CI](https://github.com/kiwina/libimgquant/actions/workflows/ci.yml/badge.svg)](https://github.com/kiwina/libimgquant/actions/workflows/ci.yml)
 
 Lossy PNG compression like pngquant, under a BSD license: libimgquant is a rewrite of
 libimagequant 2.4.1, the last BSD-licensed release of the library behind pngquant (2.5 and
@@ -269,9 +269,9 @@ columns when lower.
 
 Against imagequant 4.4.1, at every measured setting of speeds 1 and 3, version 3 is about as
 fast without dithering and 1.3–1.5 times as fast with it, scores better on all three metrics
-and writes 9–12% smaller PNGs. At speed 10 it
-scores better on SSIMULACRA2 and butteraugli and uses 7× less memory at about the same file
-size; CIEDE2000 is about 2% behind, and without dithering it is about 10% slower.
+and writes 9–12% smaller PNGs. At speed 10 it scores better on SSIMULACRA2 and butteraugli and
+uses 7× less memory at about the same file size; CIEDE2000 is about 2% behind, and without
+dithering it is about 10% slower.
 
 imagequant 4.4.1, the newest GPL libimagequant release when measured, was run as a black box
 through its public API, for reference only. Its figures and the peak-memory figures come from

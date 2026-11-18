@@ -4,9 +4,7 @@ All notable changes to libimgquant are listed here. Versions follow
 [Semantic Versioning](https://semver.org/). Version 3.0.0 is the first release; it is
 compared with libimagequant 2.4.1, the BSD-licensed C library it is based on.
 
-<!-- TODO(release): replace "unreleased" with the release date. -->
-
-## 3.0.0 (unreleased)
+## 3.0.0 (2026-11-18)
 
 ### Overview
 
