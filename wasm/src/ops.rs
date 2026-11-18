@@ -89,7 +89,7 @@ pub fn quantize(rgba: &[u8], width: f64, height: f64, settings: &Settings) -> Re
     run().map_err(|e| message(e, settings))
 }
 
-/// Converts a PNG file to a palette PNG, keeping its gamma.
+/// Converts a PNG file to a palette PNG, keeping its gamma and RGB ICC profile.
 pub fn compress_png(png: &[u8], settings: &Settings) -> Result<Vec<u8>, String> {
     let attr = settings.attributes()?;
     match png_io::compress_png(png, &attr, settings.dithering) {

@@ -1,4 +1,5 @@
 import array
+import importlib.metadata
 import math
 import threading
 import time
@@ -30,7 +31,7 @@ def unpack(result):
 
 
 def test_version():
-    assert libimgquant.__version__ == "3.0.0"
+    assert libimgquant.__version__ == importlib.metadata.version("libimgquant")
 
 
 def test_quantize_bytes():

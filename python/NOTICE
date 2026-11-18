@@ -1,0 +1,16 @@
+This Rust port is derived from libimagequant 2.4.1
+(https://github.com/ImageOptim/libimagequant, tag 2.4.1, commit
+976e021cda07c14cd36630f611a5a6eb2cafc28e), which was distributed under the
+licenses reproduced in LICENSE and below. The port is distributed under the
+same terms.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+© 1989, 1991 by Jef Poskanzer.
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted, provided
+that the above copyright notice appear in all copies and that both that
+copyright notice and this permission notice appear in supporting
+documentation.  This software is provided "as is" without express or
+implied warranty.

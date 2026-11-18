@@ -248,7 +248,8 @@ fn quantize(
 /// Converts a PNG file (any bytes-like object) to a palette PNG, like pngquant, and
 /// returns the new file.
 ///
-/// Any PNG can be read. The output keeps its size and gamma, and uses the smallest bit
+/// Any PNG can be read. The output keeps its dimensions, gamma and RGB ICC profile, and uses
+/// the smallest bit
 /// depth, a tRNS chunk only as long as needed and the smaller of a filtered and an
 /// unfiltered encoding. Options and errors as for `quantize`; ValueError for an invalid
 /// PNG.

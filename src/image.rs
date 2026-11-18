@@ -1,5 +1,7 @@
 //! Input image and its row accessors.
 
+use std::fmt;
+
 use crate::RGBA;
 use crate::attr::Attributes;
 use crate::blur::{blur, for_each_row, max3, min3};
@@ -8,7 +10,7 @@ use crate::pal::{ColorLut, ColorSpace, FPixel, HIGH_MEMORY_LIMIT, cmax, cmin};
 
 /// Callback that fills one row of RGBA pixels: `(row_out, row_index)`. See
 /// [`Attributes::new_image_fn`].
-pub type RowCallback<'a> = dyn Fn(&mut [RGBA], usize) + Send + Sync + 'a;
+pub(crate) type RowCallback<'a> = dyn Fn(&mut [RGBA], usize) + Send + Sync + 'a;
 
 pub(crate) enum PixelData<'a> {
     Owned(Box<[RGBA]>),
@@ -51,6 +53,16 @@ pub struct Image<'a> {
     pub(crate) min_opaque_val: f32,
     pub(crate) fixed_colors: Vec<FPixel>,
     pub(crate) fixed_rgba: Vec<RGBA>,
+}
+
+impl fmt::Debug for Image<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Image")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .field("gamma", &self.gamma)
+            .finish_non_exhaustive()
+    }
 }
 
 fn should_use_low_memory(pixels: usize, low_memory_hint: bool) -> bool {

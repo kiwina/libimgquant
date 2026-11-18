@@ -88,7 +88,8 @@ pub fn js_quantize(
 }
 
 /// Converts a PNG file (any color type and bit depth) to a palette PNG, like pngquant.
-/// The result keeps the input's gamma; the encoder picks the smallest bit depth, and
+/// The result keeps the input's gamma and RGB ICC profile; the encoder picks the smallest
+/// bit depth, and
 /// the smaller of an unfiltered and a filtered encoding.
 ///
 /// Throws an `Error` if the input is not a valid PNG, an option is invalid, or the

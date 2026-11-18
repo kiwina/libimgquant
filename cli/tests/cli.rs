@@ -111,8 +111,11 @@ struct Indexed {
     height: u32,
     bit_depth: u8,
     palette_len: usize,
+    /// The tRNS chunk.
+    trns: Vec<u8>,
     rgba: Vec<[u8; 4]>,
     gama: Option<u32>,
+    icc: Option<Vec<u8>>,
 }
 
 fn decode_indexed(data: &[u8]) -> Indexed {
@@ -142,8 +145,10 @@ fn decode_indexed(data: &[u8]) -> Indexed {
         height: frame.height,
         bit_depth: bits as u8,
         palette_len: palette.len() / 3,
+        trns: trns.to_vec(),
         rgba,
         gama: info.gama_chunk.map(png::ScaledFloat::into_scaled),
+        icc: info.icc_profile.as_deref().map(<[u8]>::to_vec),
     }
 }
 
@@ -166,7 +171,17 @@ fn help_and_version() {
     let out = run(&dir, &["--help"]);
     assert_eq!(code(&out), 0);
     let help = String::from_utf8(out.stdout).unwrap();
-    for text in ["--quality", "--skip-if-larger", "98", "99", "15", "--ext"] {
+    for text in [
+        "--quality",
+        "--skip-if-larger",
+        "98",
+        "99",
+        "15",
+        "--ext",
+        "--strip",
+        "--transbug",
+        "--ordered",
+    ] {
         assert!(help.contains(text), "help mentions {text}");
     }
     let out = run(&dir, &["-V"]);
@@ -186,6 +201,7 @@ fn usage_errors_exit_2() {
         &["1", "a.png"],
         &["300", "a.png"],
         &["--speed", "0", "a.png"],
+        &["--speed", "12", "a.png"],
         &["--quality", "90-50", "a.png"],
         &["--quality", "x", "a.png"],
         &["--posterize", "9", "a.png"],
@@ -278,6 +294,20 @@ fn skip_if_larger() {
     let out = run(&dir, &["--skip-if-larger", "tiny.png"]);
     assert_eq!(code(&out), 98, "{}", stderr(&out));
     assert!(!dir.join("tiny-fs8.png").exists());
+    // standard output gets the input unchanged, with the same exit code
+    let out = run_stdin(&dir, &["--skip-if-larger", "-"], &tiny);
+    assert_eq!(code(&out), 98, "{}", stderr(&out));
+    assert_eq!(out.stdout, tiny);
+    assert!(stderr(&out).contains("standard output"));
+    let out = run(&dir, &["-q", "--skip-if-larger", "-o", "-", "tiny.png"]);
+    assert_eq!(code(&out), 98);
+    assert_eq!(out.stdout, tiny);
+    assert!(out.stderr.is_empty());
+    // but not when the output is a file
+    let out = run_stdin(&dir, &["--skip-if-larger", "-o", "out.png", "-"], &tiny);
+    assert_eq!(code(&out), 98);
+    assert!(out.stdout.is_empty());
+    assert!(!dir.join("out.png").exists());
     // without the option it is written
     assert_eq!(code(&run(&dir, &["tiny.png"])), 0);
     assert!(dir.join("tiny-fs8.png").exists());
@@ -301,6 +331,14 @@ fn quality_too_low_exits_99() {
     assert_eq!(code(&out), 99, "{}", stderr(&out));
     assert!(stderr(&out).contains("quality"));
     assert!(!dir.join("noise-fs8.png").exists());
+    // standard output gets the input unchanged, with the same exit code
+    let noise = fs::read(dir.join("noise.png")).unwrap();
+    let out = run_stdin(&dir, &["--quality", "95-100", "8", "-"], &noise);
+    assert_eq!(code(&out), 99, "{}", stderr(&out));
+    assert_eq!(out.stdout, noise);
+    let out = run(&dir, &["--quality", "95-100", "8", "-o", "-", "noise.png"]);
+    assert_eq!(code(&out), 99);
+    assert_eq!(out.stdout, noise);
     // a reachable quality is fine
     assert_eq!(code(&run(&dir, &["--quality", "0-50", "noise.png"])), 0);
     assert!(dir.join("noise-fs8.png").exists());
@@ -458,6 +496,116 @@ fn gamma_chunk_is_kept() {
     assert_eq!(read("gama-fs8.png").gama, Some(55_000));
     assert_eq!(read("srgb-fs8.png").gama, None);
     assert_eq!(read("plain-fs8.png").gama, None);
+}
+
+#[test]
+fn icc_profile_is_kept_unless_strip() {
+    let dir = test_dir("icc");
+    let (w, h, pixels) = rgba_pixels();
+    let mut profile: Vec<u8> = (0..3000u32).map(|i| (i * 7 % 251) as u8).collect();
+    // the color space, at bytes 16..20 of an ICC header: only RGB profiles are copied
+    profile[16..20].copy_from_slice(b"RGB ");
+    let mut info = png::Info::with_size(w, h);
+    info.color_type = png::ColorType::Rgba;
+    info.bit_depth = png::BitDepth::Eight;
+    info.icc_profile = Some(profile.clone().into());
+    info.source_gamma = Some(png::ScaledFloat::from_scaled(45_455));
+    let mut input = Vec::new();
+    let mut writer = png::Encoder::with_info(&mut input, info)
+        .unwrap()
+        .write_header()
+        .unwrap();
+    writer.write_image_data(pixels.as_flattened()).unwrap();
+    writer.finish().unwrap();
+    fs::write(dir.join("icc.png"), &input).unwrap();
+    fs::write(dir.join("plain.png"), rgba_png()).unwrap();
+
+    let read = |name: &str| decode_indexed(&fs::read(dir.join(name)).unwrap());
+    let out = run(&dir, &["icc.png", "plain.png"]);
+    assert_eq!(code(&out), 0, "{}", stderr(&out));
+    let image = read("icc-fs8.png");
+    assert_eq!((image.icc.as_deref(), image.gama), (Some(&profile[..]), Some(45_455)));
+    assert_eq!(read("plain-fs8.png").icc, None);
+    let out = run_stdin(&dir, &["-"], &input);
+    assert_eq!(code(&out), 0, "{}", stderr(&out));
+    assert_eq!(decode_indexed(&out.stdout).icc, Some(profile));
+
+    // --strip drops the profile and keeps the gamma
+    let out = run(&dir, &["-f", "--strip", "icc.png"]);
+    assert_eq!(code(&out), 0, "{}", stderr(&out));
+    let image = read("icc-fs8.png");
+    assert_eq!((image.icc, image.gama), (None, Some(45_455)));
+}
+
+#[test]
+fn transbug_puts_the_transparent_color_last() {
+    let dir = test_dir("transbug");
+    fs::write(dir.join("a.png"), rgba_png()).unwrap();
+    let (_, _, original) = rgba_pixels();
+    let read = || decode_indexed(&fs::read(dir.join("out.png")).unwrap());
+    for profile in ["improved", "compat"] {
+        let out = run(&dir, &["-f", "--profile", profile, "-o", "out.png", "a.png"]);
+        assert_eq!(code(&out), 0, "{}", stderr(&out));
+        let image = read();
+        // compat puts the transparent color first; improved reorders the palette
+        let transparent = image.trns.iter().position(|&a| a == 0);
+        assert_ne!(transparent, Some(image.palette_len - 1), "{profile}");
+
+        let out = run(
+            &dir,
+            &["-f", "--transbug", "--profile", profile, "-o", "out.png", "a.png"],
+        );
+        assert_eq!(code(&out), 0, "{}", stderr(&out));
+        let image = read();
+        // the tRNS chunk covers the whole palette, and only the last color is transparent
+        assert_eq!(image.trns.len(), image.palette_len, "{profile}");
+        assert_eq!(image.trns.iter().position(|&a| a == 0), Some(image.palette_len - 1));
+        for (p, q) in original.iter().zip(&image.rgba) {
+            assert_eq!(p[3] == 0, q[3] == 0, "transparent pixels stay transparent");
+        }
+    }
+}
+
+#[test]
+fn transbug_leaves_opaque_images_unchanged() {
+    let dir = test_dir("transbug-opaque");
+    let (w, h, pixels) = rgba_pixels();
+    let rgb: Vec<u8> = pixels.iter().flat_map(|p| [p[0], p[1], p[2]]).collect();
+    fs::write(
+        dir.join("a.png"),
+        encode(w, h, png::ColorType::Rgb, png::BitDepth::Eight, &rgb, |_| {}),
+    )
+    .unwrap();
+    for (args, name) in [(&[][..], "x.png"), (&["--transbug"][..], "y.png")] {
+        let out = run(&dir, &[&["-f", "-o", name], args, &["a.png"]].concat());
+        assert_eq!(code(&out), 0, "{}", stderr(&out));
+    }
+    assert_eq!(
+        fs::read(dir.join("x.png")).unwrap(),
+        fs::read(dir.join("y.png")).unwrap()
+    );
+}
+
+#[test]
+fn pngquant_aliases() {
+    let dir = test_dir("aliases");
+    fs::write(dir.join("a.png"), rgba_png()).unwrap();
+    let same = |a: &[&str], b: &[&str]| {
+        for (args, name) in [(a, "x.png"), (b, "y.png")] {
+            let out = run(&dir, &[&["-f", "-o", name], args, &["a.png"]].concat());
+            assert_eq!(code(&out), 0, "{args:?}: {}", stderr(&out));
+        }
+        assert_eq!(
+            fs::read(dir.join("x.png")).unwrap(),
+            fs::read(dir.join("y.png")).unwrap()
+        );
+    };
+    // speed 11 is pngquant's fastest; here it is the same as 10
+    same(&["--speed", "11"], &["-s10"]);
+    // there is no ordered dithering: --ordered turns dithering off, like --nofs
+    same(&["--ordered"], &["--nofs"]);
+    assert_eq!(code(&run(&dir, &["--ordered", "a.png"])), 0);
+    assert!(dir.join("a-or8.png").exists());
 }
 
 #[test]

@@ -49,10 +49,13 @@
 //! 3. [`Attributes::quantize`] computes the palette, returned as a [`QuantizationResult`].
 //! 4. [`QuantizationResult::remapped`], [`remap_into`](QuantizationResult::remap_into) or
 //!    [`remap_rows`](QuantizationResult::remap_rows) replace every pixel with a palette
-//!    index, optionally with Floyd-Steinberg dithering. One result can remap several images
-//!    with the same palette.
+//!    index, optionally with Floyd-Steinberg dithering. One result can remap several images,
+//!    but each remapping fits the palette to its image ([`Profile::Improved`] reorders it,
+//!    and dithering can adjust its colors), so use the palette that comes with each
+//!    remapping: `remapped` returns it, [`palette`](QuantizationResult::palette) gives it
+//!    after the other two.
 //!
-//! For one palette that fits several images, such as the frames of an animated GIF, collect
+//! For one palette shared by several images, such as the frames of an animated GIF, collect
 //! their colors in a [`Histogram`] and quantize that instead of a single image.
 //!
 //! # Quality
@@ -73,6 +76,11 @@
 //!
 //! Select one with [`Attributes::set_profile`].
 //!
+//! **Stability:** the API follows semantic versioning. [`Compat`](Profile::Compat) output
+//! changes only to fix bugs. The exact palettes and indices of
+//! [`Improved`](Profile::Improved) may change in a 3.x minor release as the algorithms
+//! improve.
+//!
 //! # Cargo features
 //!
 //! - **`threads`** (default): runs the histogram, pixel conversion, contrast and dither maps,
@@ -85,7 +93,7 @@
 //! - **`png`**: the `png_io` module, which decodes any PNG to RGBA and writes palette PNGs
 //!   as described under [Writing PNGs](#writing-pngs), with the
 //!   [png](https://crates.io/crates/png) crate. `png_io::compress_png` converts a PNG file
-//!   in one call.
+//!   in one call, keeping its gamma and ICC color profile.
 //!
 //! Output is deterministic and identical on every platform: dithering noise comes from the
 //! crate's own seeded generator, sorting uses a fixed tie order and hashing is little-endian.
@@ -171,6 +179,7 @@
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![warn(missing_debug_implementations)]
 
 mod attr;
 mod blur;
@@ -193,7 +202,7 @@ mod rng;
 pub use attr::{Attributes, Profile};
 pub use error::Error;
 pub use histogram::{Histogram, HistogramEntry};
-pub use image::{Image, RowCallback};
+pub use image::Image;
 pub use quant::QuantizationResult;
 
 /// 8-bit RGBA pixel, from the [`rgb`] crate: the input pixel type and the palette entry type.

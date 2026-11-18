@@ -1,14 +1,6 @@
-This Rust port is derived from libimagequant 2.4.1
-(https://github.com/ImageOptim/libimagequant, tag 2.4.1, commit
-976e021cda07c14cd36630f611a5a6eb2cafc28e), which was distributed under the
-licenses reproduced below. The port is distributed under the same terms.
-
-© 2026 libimgquant contributors (Rust port).
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
 © 1997-2002 by Greg Roelofs; based on an idea by Stefan Schneider.
 © 2009-2014 by Kornel Lesiński.
+© 2026 libimgquant contributors (Rust port).
 
 All rights reserved.
 
@@ -32,14 +24,3 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-© 1989, 1991 by Jef Poskanzer.
-
-Permission to use, copy, modify, and distribute this software and its
-documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
-copyright notice and this permission notice appear in supporting
-documentation.  This software is provided "as is" without express or
-implied warranty.

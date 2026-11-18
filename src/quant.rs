@@ -1,6 +1,7 @@
 //! Palette search and the quantization result.
 
 use std::cmp::Ordering;
+use std::fmt;
 
 use crate::RGBA;
 use crate::attr::{Attributes, Profile, mse_to_quality};
@@ -16,9 +17,10 @@ use crate::reorder::reorder_palette;
 
 /// Result of [`Attributes::quantize`]: a palette that can be used to remap images.
 ///
-/// One result can remap several images. Each remapping can fine-tune the palette for its
-/// image (see [`palette`](Self::palette)); for frames that must share exactly one palette, such
-/// as a GIF's global color table, quantize a [`Histogram`](crate::Histogram) of all frames.
+/// One result can remap several images. Each remapping can reorder the palette and fine-tune
+/// its colors for its image (see [`palette`](Self::palette)); for frames that must share
+/// exactly one palette, such as a GIF's global color table, quantize a
+/// [`Histogram`](crate::Histogram) of all frames.
 ///
 /// ```
 /// use libimgquant::RGBA;
@@ -58,6 +60,18 @@ pub struct QuantizationResult {
     /// Every remapping uses exactly [`palette`](QuantizationResult::palette): no per-image
     /// k-means update and no reordering, so frames can share one color table.
     shared_palette: bool,
+}
+
+impl fmt::Debug for QuantizationResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("QuantizationResult")
+            .field("colors", &self.palette.len())
+            .field("output_gamma", &self.gamma)
+            .field("dithering_level", &self.dither_level)
+            .field("profile", &self.profile)
+            .field("quantization_error", &self.quantization_error())
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone)]
@@ -613,7 +627,9 @@ impl QuantizationResult {
             palette_error = f64::from(remapping_error);
         }
 
-        if self.profile == Profile::Improved && !self.last_index_transparent && !self.shared_palette {
+        // a transparent entry put last (set_last_index_transparent) must stay last
+        let transparent_last = self.last_index_transparent && int_palette.last().is_some_and(|c| c.a == 0);
+        if self.profile == Profile::Improved && !transparent_last && !self.shared_palette {
             reorder_palette(&mut int_palette, rows, self.reorder_palette);
         }
 

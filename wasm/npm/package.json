@@ -41,6 +41,7 @@
     "libimgquant_bg.wasm",
     "libimgquant_bg.wasm.d.ts",
     "LICENSE",
+    "NOTICE",
     "THIRD-PARTY-LICENSES.txt"
   ],
   "engines": {

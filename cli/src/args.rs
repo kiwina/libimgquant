@@ -23,11 +23,14 @@ options:
       --skip-if-larger    only save converted files that are smaller than the input
   -Q, --quality MIN-MAX   don't save below MIN quality, use the fewest colors that reach
                           MAX (0-100, like JPEG); also 'MAX', '-MAX' and 'MIN-'
-  -s, --speed N           speed 1 (slowest, best) to 10 (fastest); default 3
+  -s, --speed N           speed 1 (slowest, best) to 10 (fastest); default 3; 11 is accepted
+                          and is the same as 10
       --nofs              disable Floyd-Steinberg dithering
+      --ordered           same as --nofs (there is no ordered dithering)
       --floyd[=0.0..1.0]  dithering level (default 1, full dithering)
       --posterize N       ignore N least significant bits of each channel (0-4)
-      --strip             accepted for compatibility: metadata is never copied
+      --strip             don't copy the ICC profile (the gamma is always kept)
+      --transbug          put the fully transparent color last in the palette
       --profile NAME      'improved' (default) or 'compat' (libimagequant 2.4.1's algorithms)
       --threads N         number of worker threads (default: one per CPU)
   -v, --verbose           print the quantizer's progress and per-file statistics
@@ -41,7 +44,8 @@ Use '--ext .png --force' to overwrite the input files. '-' as the only input fil
 standard input and writes standard output (or --output). Outputs are written atomically:
 a temporary file in the same directory is renamed over the target.
 
-The output keeps the input's gamma (gAMA chunk); other metadata is not copied.
+The output keeps the input's gamma (gAMA chunk) and, without --strip, its RGB ICC profile
+(iCCP chunk); other metadata is not copied.
 
 exit codes:
   0   success
@@ -51,6 +55,7 @@ exit codes:
   98  --skip-if-larger: the result would not be smaller (file not written)
   99  the image could not reach the minimum --quality (file not written)
 With several input files, every file is processed and the first non-zero code is returned.
+When the output is standard output, 98 and 99 write the input there unchanged.
 ";
 
 /// What the command line asks for.
@@ -72,6 +77,10 @@ pub struct Options {
     pub output: Option<PathBuf>,
     pub force: bool,
     pub skip_if_larger: bool,
+    /// `--strip`: don't copy the ICC profile.
+    pub strip: bool,
+    /// `--transbug`: the transparent color goes last in the palette.
+    pub transparent_last: bool,
     pub verbose: bool,
     pub quiet: bool,
     pub profile: Profile,
@@ -104,6 +113,8 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, String
         output: None,
         force: false,
         skip_if_larger: false,
+        strip: false,
+        transparent_last: false,
         verbose: false,
         quiet: false,
         profile: Profile::Improved,
@@ -150,10 +161,11 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, String
                 "version" => return Ok(Command::Version),
                 "force" => no_value().map(|()| opts.force = true)?,
                 "skip-if-larger" => no_value().map(|()| opts.skip_if_larger = true)?,
-                "strip" => no_value()?,
+                "strip" => no_value().map(|()| opts.strip = true)?,
+                "transbug" => no_value().map(|()| opts.transparent_last = true)?,
                 "verbose" => no_value().map(|()| opts.verbose = true)?,
                 "quiet" => no_value().map(|()| opts.quiet = true)?,
-                "nofs" => no_value().map(|()| opts.dithering = 0.0)?,
+                "nofs" | "ordered" => no_value().map(|()| opts.dithering = 0.0)?,
                 "floyd" => opts.dithering = inline.map_or(Ok(1.0), parse_dithering)?,
                 "quality" => opts.quality = Some(parse_quality(&utf8(&value("MIN-MAX")?)?)?),
                 "speed" => opts.speed = parse_speed(&utf8(&value("a number")?)?)?,
@@ -241,8 +253,8 @@ fn parse_quality(text: &str) -> Result<(u8, u8), String> {
 
 fn parse_speed(text: &str) -> Result<i32, String> {
     match text.parse() {
-        Ok(n @ 1..=10) => Ok(n),
-        _ => Err(format!("--speed must be 1 to 10, not '{text}'")),
+        Ok(n @ 1..=11) => Ok(n),
+        _ => Err(format!("--speed must be 1 to 11, not '{text}'")),
     }
 }
 
@@ -344,7 +356,13 @@ mod tests {
         assert_eq!(o.ext(), "-or8.png");
         assert_eq!(o.posterize, 2);
         assert_eq!(o.profile, Profile::Compat);
+        assert!(o.strip && !o.transparent_last);
         assert_eq!(run(&["--floyd", "a.png"]).unwrap().dithering, 1.0);
+        let o = run(&["--ordered", "--transbug", "-s11", "a.png"]).unwrap();
+        assert_eq!(o.dithering, 0.0);
+        assert_eq!(o.ext(), "-or8.png");
+        assert!(o.transparent_last && !o.strip);
+        assert_eq!(o.speed, 11);
     }
 
     #[test]
@@ -352,7 +370,8 @@ mod tests {
         for args in [
             &[][..],
             &["--speed", "0", "a.png"],
-            &["--speed", "11", "a.png"],
+            &["--speed", "12", "a.png"],
+            &["--transbug=1", "a.png"],
             &["--speed"],
             &["--force=1", "a.png"],
             &["--floyd=2", "a.png"],

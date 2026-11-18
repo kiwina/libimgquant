@@ -7,9 +7,10 @@ for reference only, against imagequant 4.4.1.
 ## Test set
 
 22 PNG images, 18.5 megapixels in total: photos, paintings, textures, sprites with alpha, UI
-screenshots, flat art, noise and an already paletted image. The images are not part of the
-repository; any directory of PNG files can be measured the same way. All settings are at
-256 colors.
+screenshots, flat art, noise and an already paletted image. It is a private set of images
+under mixed licenses, so the images are not part of the repository; any directory of PNG
+files can be measured the same way. All settings are at 256 colors, measured with
+libimgquant 3.0.0 on 2026-10-22.
 
 ## How it was measured
 
@@ -25,9 +26,10 @@ repository; any directory of PNG files can be measured the same way. All setting
   images, counted with a tracking allocator in the comparison program. The caller's input
   pixels are borrowed and not counted; the returned indices are.
 
-imagequant 4.4.1 (the current GPL libimagequant) is shown for reference only. It was run as
-a black box through its public API in a separate benchmark program; it is not part of this
-project, and none of its code is used here.
+imagequant 4.4.1 (the newest GPL libimagequant release when measured) is shown for reference
+only. It was run as a black box through its public API in a one-off comparison program,
+which also measured every peak-memory figure. That program is not published; imagequant is
+not part of this project, and none of its code is used here.
 
 ## Results
 
@@ -50,8 +52,8 @@ as fast, better on all three metrics and 6% smaller.
 
 **Against imagequant 4.4.1:**
 
-- **Speeds 1 and 3:** version 3 is faster, better on all three metrics, 9–12% smaller, and
-  uses less memory.
+- **Speeds 1 and 3:** version 3 is about as fast without dithering and 1.3–1.5 times as fast
+  with it, better on all three metrics, 9–12% smaller, and uses less memory.
 - **Speed 10:**
   - **Better:** SSIMULACRA2, butteraugli, and 7× less memory. With dithering, it is also
     1.8 times as fast.
@@ -76,11 +78,11 @@ its own:
 
 ## Reproducing
 
-[`tools/iqeval`](tools/iqeval/README.md) reproduces the time, quality and PNG-size columns
-for this library (peak memory comes from the comparison program). It is an unpublished workspace member
-with its own dependencies and MSRV (1.89). It reads PNG files, so the reference images are
-exact, and it times only `new_image_borrowed`, `quantize`, `set_dithering_level` and
-`remapped`:
+[`tools/iqeval`](tools/iqeval/README.md) measures the time, quality and PNG-size columns of
+the libimgquant rows on any directory of PNG files; the imagequant rows and peak memory come
+from the unpublished comparison program. It is an unpublished workspace member with its own
+dependencies and MSRV (1.89). It reads PNG files, so the reference images are exact, and it
+times only `new_image_borrowed`, `quantize`, `set_dithering_level` and `remapped`:
 
 ```bash
 # speed 3 (the default); add --speed 1 or --speed 10 for the other rows

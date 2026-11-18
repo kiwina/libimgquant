@@ -152,10 +152,12 @@ fn convert(opts: &Options, input: &Path) -> Result<(), Failure> {
 
     let quantize_start = Instant::now();
     let (palette, indices, quality) = quantize(opts, &decoded).map_err(|e| match e {
-        libimgquant::Error::QualityTooLow => Failure::new(
+        libimgquant::Error::QualityTooLow => reject(
+            &target,
+            &data,
             EXIT_QUALITY_TOO_LOW,
             format!(
-                "{name}: the minimum quality {} could not be reached; not saved",
+                "{name}: the minimum quality {} could not be reached",
                 opts.quality.map_or(0, |q| q.0)
             ),
         ),
@@ -163,14 +165,18 @@ fn convert(opts: &Options, input: &Path) -> Result<(), Failure> {
     })?;
     let quantize_time = quantize_start.elapsed();
 
-    let png =
-        png_io::encode_indexed(&palette, &indices, decoded.width, decoded.height, decoded.gamma).map_err(|e| {
-            let e: &dyn std::fmt::Display = match &e {
-                PngError::Encode(e) => e,
-                e => e,
-            };
-            Failure::new(EXIT_IO, format!("{name}: {e}"))
-        })?;
+    // the gAMA chunk is always kept: it changes how the colors are displayed
+    let mut metadata = decoded.metadata();
+    if opts.strip {
+        metadata.icc_profile = None;
+    }
+    let png = png_io::encode_indexed(&palette, &indices, decoded.width, decoded.height, &metadata).map_err(|e| {
+        let e: &dyn std::fmt::Display = match &e {
+            PngError::Encode(e) => e,
+            e => e,
+        };
+        Failure::new(EXIT_IO, format!("{name}: {e}"))
+    })?;
     if opts.verbose {
         eprintln!(
             "  {} colors, quality {} (speed {}, dithering {}), quantized in {:.1} ms",
@@ -182,10 +188,12 @@ fn convert(opts: &Options, input: &Path) -> Result<(), Failure> {
         );
     }
     if opts.skip_if_larger && png.len() >= data.len() {
-        return Err(Failure::new(
+        return Err(reject(
+            &target,
+            &data,
             EXIT_TOO_LARGE,
             format!(
-                "{name}: the result ({} bytes) would not be smaller than the input ({} bytes); not saved",
+                "{name}: the result ({} bytes) would not be smaller than the input ({} bytes)",
                 png.len(),
                 data.len()
             ),
@@ -194,11 +202,7 @@ fn convert(opts: &Options, input: &Path) -> Result<(), Failure> {
 
     let written_to = match &target {
         Target::Stdout => {
-            let mut stdout = io::stdout().lock();
-            stdout
-                .write_all(&png)
-                .and_then(|()| stdout.flush())
-                .map_err(|e| Failure::new(EXIT_IO, format!("standard output: {e}")))?;
+            write_stdout(&png)?;
             "standard output".to_string()
         }
         Target::File(out) => {
@@ -223,7 +227,9 @@ type Quantized = (Vec<libimgquant::RGBA>, Vec<u8>, Option<u8>);
 fn quantize(opts: &Options, decoded: &DecodedPng) -> Result<Quantized, libimgquant::Error> {
     let mut attr = libimgquant::new();
     attr.set_profile(opts.profile);
-    attr.set_speed(opts.speed)?;
+    // pngquant's fastest speed is 11, the quantizer's is 10
+    attr.set_speed(opts.speed.min(10))?;
+    attr.set_last_index_transparent(opts.transparent_last);
     attr.set_max_colors(opts.colors)?;
     attr.set_min_posterization(opts.posterize)?;
     if let Some((min, max)) = opts.quality {
@@ -237,6 +243,26 @@ fn quantize(opts: &Options, decoded: &DecodedPng) -> Result<Quantized, libimgqua
     result.set_dithering_level(opts.dithering)?;
     let (palette, indices) = result.remapped(&mut image)?;
     Ok((palette, indices, result.quantization_quality()))
+}
+
+/// The image is not saved (exit 98 or 99). Like pngquant, standard output gets the input
+/// unchanged instead, so that a pipeline still gets a PNG.
+fn reject(target: &Target, data: &[u8], code: u8, reason: String) -> Failure {
+    match target {
+        Target::File(_) => Failure::new(code, format!("{reason}; not saved")),
+        Target::Stdout => match write_stdout(data) {
+            Ok(()) => Failure::new(code, format!("{reason}; wrote the input unchanged to standard output")),
+            Err(failure) => failure,
+        },
+    }
+}
+
+fn write_stdout(data: &[u8]) -> Result<(), Failure> {
+    let mut stdout = io::stdout().lock();
+    stdout
+        .write_all(data)
+        .and_then(|()| stdout.flush())
+        .map_err(|e| Failure::new(EXIT_IO, format!("standard output: {e}")))
 }
 
 fn not_overwriting(out: &Path) -> Failure {

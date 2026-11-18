@@ -88,7 +88,8 @@ def compress_png(
 ) -> bytes:
     """Converts a PNG file to a palette PNG, like pngquant, and returns the new file.
 
-    Any PNG can be read; the output keeps its dimensions and gamma, uses the smallest bit depth,
+    Any PNG can be read; the output keeps its dimensions, gamma and RGB ICC profile, uses the
+    smallest bit depth,
     a tRNS chunk only as long as needed, and the smaller of a filtered and an unfiltered
     encoding. Options and errors as for :func:`quantize`; ValueError for an invalid PNG.
     """

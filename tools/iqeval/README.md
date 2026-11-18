@@ -45,14 +45,14 @@ cargo run --release -p iqeval -- $C --profile both --repeat 3 --dither 0 --save 
 ```
 
 and for a change that must keep Compat output identical, save a `--profile compat` (or
-`both`) run before and after and check `identical outputs: 22/22` in `--diff`. Runs saved
-before the default became `improved` hold compat rows only; compare them with a new
-`--profile compat` run.
+`both`) run before and after and check that `--diff` prints `identical outputs: n/n` (all
+images). Runs saved before the default became `improved` hold compat rows only; compare them
+with a new `--profile compat` run.
 
-On the project's 22-image, 18.5-megapixel test set (not part of the repository; any
-directory of PNG files works) a single run takes about 40 s (most of it SSIMULACRA2), and
-`--profile both --repeat 3` about 2-3 minutes on a 14-thread machine. Peak memory is about
-2.5 GB, for a 4-megapixel image with alpha.
+On the project's private 22-image, 18.5-megapixel test set (images under mixed licenses, not
+part of the repository; any directory of PNG files works) a single run takes about 40 s (most
+of it SSIMULACRA2), and `--profile both --repeat 3` about 2-3 minutes on a 14-thread
+machine. Peak memory is about 2.5 GB, for a 4-megapixel image with alpha.
 
 ## Inputs
 

@@ -15,7 +15,9 @@ compared with libimagequant 2.4.1, the BSD-licensed C library it is based on.
   code, no build script and no FFI. Dependencies: `rgb`, `rayon` for the optional
   `threads` feature (on by default) and `png` for the optional `png` feature. MSRV 1.85.
 - **License:** BSD-2-Clause, plus Jef Poskanzer's original permissive notice. No code from
-  libimagequant 2.5 or later (GPL-3) was used.
+  libimagequant 2.5 or later (GPL-3) was used. `LICENSE` has the BSD-2-Clause text and
+  `NOTICE` the provenance and Poskanzer's notice; every crate, wheel, sdist and the npm
+  package ships both.
 - **Two profiles:** `Profile::Improved` (the default) uses the new algorithms below.
   `Profile::Compat` reproduces 2.4.1 step by step, including its mixed `f32`/`f64`
   arithmetic, apart from the bug fixes below; golden-hash tests freeze its output.
@@ -34,9 +36,9 @@ compared with libimagequant 2.4.1, the BSD-licensed C library it is based on.
   makes filtered PNGs smaller. Translucent entries still come first.
 - **Speed presets:** fewer repeated median cuts and k-means iterations.
 
-On the project's 22-image test corpus at speed 3 without dithering, the default profile
-takes 1.39 s against 4.73 s for the 2.4.1 port, scores better on SSIMULACRA2, butteraugli
-and CIEDE2000, and gives 6% smaller PNGs (BENCHMARKS.md).
+On the project's private 22-image test set at speed 3 without dithering (measured on
+2026-10-22), the default profile takes 1.39 s against 4.73 s for the 2.4.1 port, scores
+better on SSIMULACRA2, butteraugli and CIEDE2000, and gives 6% smaller PNGs (BENCHMARKS.md).
 
 ### Faster in both profiles (output unchanged)
 
@@ -52,7 +54,8 @@ and CIEDE2000, and gives 6% smaller PNGs (BENCHMARKS.md).
 - Images from owned or borrowed pixels (with or without a stride), separate rows, or a row
   callback.
 - Remapping into a new buffer (`remapped`), a contiguous buffer (`remap_into`) or separate
-  rows (`remap_rows`); one result can remap several images.
+  rows (`remap_rows`); one result can remap several images, each with the palette fitted to
+  it, which `remapped` returns.
 - Log callbacks are closures.
 - `Histogram`: one palette for several images (animation frames, sprite sheets). Images are
   added with `add_image`, weighted as `quantize` weights a single image (contrast maps, each
@@ -61,9 +64,18 @@ and CIEDE2000, and gives 6% smaller PNGs (BENCHMARKS.md).
   result that remaps every image to exactly the same palette. All colors must have one
   gamma. The result is the same for any number of threads.
 - Feature `png` (off by default): the `png_io` module decodes any PNG to RGBA with its gamma
-  (`decode`), writes palette PNGs with the smallest bit depth, a trimmed tRNS chunk and the
-  smaller of an unfiltered and a filtered encoding (`encode_indexed`), and converts a PNG in
-  one call (`compress_png`). The command-line tool uses it.
+  and ICC profile (`decode`), writes palette PNGs with the smallest bit depth, a trimmed tRNS
+  chunk and the smaller of an unfiltered and a filtered encoding (`encode_indexed`), and
+  converts a PNG in one call (`compress_png`), keeping the gamma and ICC profile.
+  `encode_indexed` takes the gAMA and iCCP chunks to write as a `PngMetadata`, which
+  `DecodedPng::metadata()` copies from a decoded file. The command-line tool uses it.
+- `decode` and untrusted files: images over `i32::MAX` pixels are rejected before anything
+  is allocated, the pixels are allocated fallibly and filled as rows are decoded, and
+  images with too little image data for their size fail before their pixels are allocated.
+  The png crate's own buffers keep its 64 MiB limit. Only RGB ICC profiles are written (PNG
+  allows no other kind on palette images).
+- Every public type implements `Debug`; `Image` and `QuantizationResult` show their size
+  and settings, not their pixels.
 - `examples/animated_gif.rs`: PNG frames (or a synthetic animation) to an animated GIF with
   one palette, using `Histogram` and the `gif` crate (a development dependency only).
 
@@ -83,27 +95,37 @@ and CIEDE2000, and gives 6% smaller PNGs (BENCHMARKS.md).
 ### Command-line tool (`imgquant`, new crate)
 
 - A pngquant-style command-line tool built on the library: `cargo install imgquant`.
-- pngquant's options: number of colors, `--quality`, `--speed`, `--nofs`/`--floyd`,
-  `--posterize`, `--ext`, `-o`, `--force`, `--skip-if-larger`, `--strip`, `-v`/`-q`;
-  plus `--profile` and `--threads`.
+- pngquant's options: number of colors, `--quality`, `--speed` (1-11; 11 is the same as
+  10), `--nofs`/`--ordered`/`--floyd`, `--posterize`, `--ext`, `-o`, `--force`,
+  `--skip-if-larger`, `--strip`, `--transbug`, `-v`/`-q`; plus `--profile` and `--threads`.
+  `--ordered` is the same as `--nofs`, since there is no ordered dithering.
 - pngquant's exit codes: 99 when the minimum quality can't be reached, 98 when the result
-  would be larger (`--skip-if-larger`), 15 when the output exists without `--force`.
-- Reads every PNG color type and bit depth, keeps the input's gamma, writes the smallest
-  bit depth and the smaller of an unfiltered and a filtered encoding, and writes files
-  atomically. Reads standard input and writes standard output with `-`.
+  would be larger (`--skip-if-larger`), 15 when the output exists without `--force`. With
+  standard output as the output, 98 and 99 write the input there unchanged.
+- Reads every PNG color type and bit depth, keeps the input's gamma and ICC profile
+  (`--strip` drops the ICC profile), writes the smallest bit depth and the smaller of an
+  unfiltered and a filtered encoding, and writes files atomically. Reads standard input and
+  writes standard output with `-`.
+- Prebuilt binaries for Linux (static musl builds for x86_64 and aarch64), Windows (x64) and
+  macOS (arm64, x86_64) are attached to the GitHub release; `cargo binstall imgquant`
+  installs them.
 
 ### npm package (`libimgquant`, new, `wasm/`)
 
 - WebAssembly build for browsers and Node.js 18+, with TypeScript types and no
   dependencies: `quantize`, `compressPng` (PNG in, smaller indexed PNG out) and
-  `quantizeFrames` (one palette for many frames). 475 KB `.wasm`, 185 KB gzipped.
+  `quantizeFrames` (one palette for many frames). About 480 KB `.wasm`, 190 KB gzipped.
+  `compressPng` keeps the input's gamma and ICC profile.
 
 ### Python package (`libimgquant`, new, `python/`)
 
 - PyO3 bindings with stable-ABI wheels for CPython 3.9+: `quantize`, `compress_png`,
   `quantize_frames` and the Pillow helper `quantize_image`. Accepts bytes, bytearray,
   memoryview and numpy arrays; releases the GIL while working; raises
-  `QualityTooLowError` when the minimum quality can't be reached.
+  `QualityTooLowError` when the minimum quality can't be reached. `compress_png` keeps the
+  input's gamma and ICC profile.
+- The wheels and the sdist include `THIRD-PARTY-LICENSES.txt`, the licenses of the Rust
+  crates compiled into the extension.
 
 ### Bug fixes (both profiles)
 

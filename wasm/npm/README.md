@@ -2,7 +2,7 @@
 
 Converts RGBA images to 8-bit palette images with alpha, for small PNGs and GIFs, in
 browsers and Node.js. `compressPng` does what pngquant does: a PNG file in, a palette PNG
-out, about 30% of the input size in total on the project's 22-image test set.
+out, about 30% of the input size in total on the project's private 22-image test set.
 
 This is [libimgquant 3](https://github.com/kiwina/libimgquant), a pure-Rust color quantizer
 based on libimagequant 2.4.1 (the last BSD-licensed release of the library behind pngquant)
@@ -10,7 +10,7 @@ and improved with color quantization research, compiled to WebAssembly.
 
 - **BSD-2-Clause**, no GPL code.
 - **One ES module**, no dependencies, TypeScript types included.
-- **Size:** the WebAssembly module is 475 KB (185 KB gzipped), PNG decoder and encoder included.
+- **Size:** the WebAssembly module is about 480 KB (190 KB gzipped), PNG decoder and encoder included.
 - **Runs in** current browsers, module Web Workers and bundlers, and Node.js 18 or later.
   It is single-threaded; run it in a Worker to keep a page responsive.
 
@@ -49,6 +49,27 @@ const { data, width, height } = canvas.getContext("2d").getImageData(0, 0, canva
 const { palette, indices, quality } = quantize(data, width, height, { maxColors: 64 });
 ```
 
+### Other image formats
+
+`compressPng` reads PNG only. For any other format the browser can decode (JPEG, WebP, AVIF,
+GIF, ...), draw the image on a canvas, save the canvas as PNG and compress that:
+
+```js
+const bitmap = await createImageBitmap(file);
+const canvas = document.createElement("canvas");
+canvas.width = bitmap.width;
+canvas.height = bitmap.height;
+canvas.getContext("2d").drawImage(bitmap, 0, 0);
+const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+const png = compressPng(new Uint8Array(await blob.arrayBuffer()));
+```
+
+In a Worker, use `new OffscreenCanvas(bitmap.width, bitmap.height)` and
+`await canvas.convertToBlob({ type: "image/png" })` instead. To skip the PNG step, pass
+`getImageData(...).data` to `quantize` and encode the palette and indices yourself.
+
+### Bundlers
+
 Vite and webpack 5 emit the `.wasm` file automatically: they follow
 `new URL("./libimgquant_bg.wasm", import.meta.url)`. With Vite, add
 `optimizeDeps: { exclude: ["libimgquant"] }` so that the dev server serves the file from the
@@ -75,8 +96,9 @@ Quantizes an image and remaps it to the palette.
 ### `compressPng(png, options?)`
 
 Converts a PNG file (any color type and bit depth) to a palette PNG and returns its bytes
-as a `Uint8Array`. The output keeps the input's gamma, uses the smallest bit depth that
-holds the palette, and is the smaller of an unfiltered and a filtered encoding.
+as a `Uint8Array`. The output keeps the input's gamma and ICC color profile, uses the
+smallest bit depth that holds the palette, and is the smaller of an unfiltered and a
+filtered encoding.
 
 ### `quantizeFrames(frames, width, height, options?)`
 
@@ -121,7 +143,8 @@ try {
 
 ## License
 
-BSD-2-Clause, plus the original permissive notice of libimagequant 2.4.1; see `LICENSE`.
+BSD-2-Clause, plus the original permissive notice of libimagequant 2.4.1; see `LICENSE` and
+`NOTICE`.
 The WebAssembly module also contains the Rust standard library and other permissively
 licensed Rust crates (the PNG codec and the JS bindings); their licenses are in
 `THIRD-PARTY-LICENSES.txt`.

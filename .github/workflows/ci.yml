@@ -1,8 +1,10 @@
 name: CI
 
-# Runs only when started by hand (Actions tab > CI > Run workflow, or `gh workflow run ci.yml`),
-# to save Actions minutes on this private repository.
+# Free on a public repository: every push to main, every pull request, and by hand.
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -25,7 +27,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Test the workspace
@@ -43,7 +45,7 @@ jobs:
     name: MSRV 1.85 (library, C API, CLI)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
       - name: Test the library, the C API and the CLI
@@ -55,7 +57,7 @@ jobs:
     name: Clippy and rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -82,7 +84,7 @@ jobs:
     env:
       RUSTDOCFLAGS: -D warnings
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: cargo doc
@@ -93,11 +95,20 @@ jobs:
     name: Package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: cargo package
         run: cargo package --workspace --exclude iqeval --locked
+      - name: License files are up to date
+        run: |
+          for dir in capi cli python; do
+            cmp LICENSE "$dir/LICENSE"
+            cmp NOTICE "$dir/NOTICE"
+          done
+          scripts/third-party-licenses.sh python/Cargo.toml all "libimgquant's Python extension module" |
+            diff -u python/THIRD-PARTY-LICENSES.txt - ||
+            { echo "::error::python/THIRD-PARTY-LICENSES.txt is out of date (see scripts/third-party-licenses.sh)"; exit 1; }
       - name: List the package contents
         run: |
           cargo package --list -p libimgquant --locked
@@ -113,7 +124,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build the release library
@@ -123,7 +134,7 @@ jobs:
       - name: Check the header as C++17
         run: echo '#include "libimgquant.h"' | c++ -std=c++17 -Wall -Wextra -pedantic -Werror -x c++ -fsyntax-only -I capi/assets -
       - name: List the built libraries
-        run: ls -l target/release/ | grep -i imgquant
+        run: ls -l target/release/*imgquant*
 
   cargo-c:
     # Checks the [package.metadata.capi] settings: cargo cinstall into a temporary prefix, then
@@ -131,7 +142,7 @@ jobs:
     name: cargo-c install
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
@@ -145,6 +156,7 @@ jobs:
         run: |
           export PKG_CONFIG_PATH="$RUNNER_TEMP/prefix/lib/pkgconfig"
           pkg-config --cflags --libs libimgquant
+          # shellcheck disable=SC2046 # the pkg-config flags are split into words on purpose
           printf '%s\n' \
             '#include <libimgquant.h>' \
             '#include <stdio.h>' \
@@ -167,7 +179,7 @@ jobs:
       run:
         working-directory: wasm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -181,7 +193,7 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: wasm-bindgen-cli@${{ steps.wbg.outputs.version }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Clippy for wasm32
@@ -192,7 +204,12 @@ jobs:
         run: ./build.sh
       - name: Node 24 tests
         run: node --test tests/package.test.mjs
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - name: Node 26 tests (newest)
+        run: node --test tests/package.test.mjs
+      - uses: actions/setup-node@v7
         with:
           node-version: 18
       - name: Node 18 tests (oldest supported)
@@ -211,24 +228,24 @@ jobs:
         include:
           # setup-python has no CPython 3.9 for Ubuntu 26.04 (the new ubuntu-latest)
           - { os: ubuntu-24.04, python: "3.9" }
-          - { os: ubuntu-latest, python: "3.14" }
-          - { os: macos-latest, python: "3.14" }
-          - { os: windows-latest, python: "3.14" }
+          - { os: ubuntu-latest, python: "3.15" }
+          - { os: macos-latest, python: "3.15" }
+          - { os: windows-latest, python: "3.15" }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
         working-directory: python
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: python
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10.3.3 # setup-uv publishes no major-version tags
       - name: Build the abi3 wheel
         run: uvx maturin build --release --locked --out dist
       - name: Install the wheel into a fresh venv
@@ -239,7 +256,7 @@ jobs:
         working-directory: python/tests
         run: uv run --no-project --python ../.venv python -m pytest -q
       - name: Build the sdist
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14'
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.15'
         run: uvx maturin sdist --out dist
 
   licenses:
@@ -254,7 +271,7 @@ jobs:
     # A new advisory against a dependency should not block unrelated changes.
     continue-on-error: ${{ matrix.checks == 'advisories' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check ${{ matrix.checks }}

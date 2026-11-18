@@ -11,8 +11,9 @@ description = "Pure-Rust, BSD-licensed color quantizer: RGBA images to 8-bit pal
 # is the Rust crate's.
 readme = "../python/README.md"
 license = "BSD-2-Clause"
-# A copy of ../COPYRIGHT: the sdist puts the library crate's COPYRIGHT at its root already.
-license-files = ["LICENSE"]
+# LICENSE and NOTICE: copies of ../LICENSE and ../NOTICE. THIRD-PARTY-LICENSES.txt: the licenses of
+# the Rust crates compiled into the wheels, made by scripts/third-party-licenses.sh (CI checks both).
+license-files = ["LICENSE", "NOTICE", "THIRD-PARTY-LICENSES.txt"]
 requires-python = ">=3.9"
 authors = [{ name = "kiwina" }]
 keywords = ["quantization", "palette", "png", "gif", "pngquant", "libimagequant", "image compression"]
@@ -28,6 +29,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Rust",
     "Topic :: Multimedia :: Graphics",
@@ -51,6 +53,9 @@ Issues = "https://github.com/kiwina/libimgquant/issues"
 # Mixed project: python/libimgquant/ is the package, the native module is libimgquant._libimgquant.
 module-name = "libimgquant._libimgquant"
 python-source = "."
+# The sdist has the library crate's LICENSE and NOTICE at its root, where pyproject.toml goes too;
+# the identical copies here would collide with them.
+exclude = [{ path = "/LICENSE", format = "sdist" }, { path = "/NOTICE", format = "sdist" }]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

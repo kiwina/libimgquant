@@ -188,4 +188,5 @@ Notes for packagers:
 ## License
 
 BSD-2-Clause, plus the original permissive notice by Jef Poskanzer. See
-[COPYRIGHT](https://docs.rs/crate/libimgquant-capi/latest/source/COPYRIGHT).
+[LICENSE](https://docs.rs/crate/libimgquant-capi/latest/source/LICENSE) and
+[NOTICE](https://docs.rs/crate/libimgquant-capi/latest/source/NOTICE).

@@ -258,3 +258,21 @@ fn error_display() {
     let err: Box<dyn std::error::Error> = Box::new(Error::QualityTooLow);
     assert!(!err.to_string().is_empty());
 }
+
+#[test]
+fn debug_output_is_short() {
+    let attr = libimgquant::new();
+    let mut image = attr.new_image(gradient(16, 8), 16, 8, 0.0).unwrap();
+    assert_eq!(
+        format!("{image:?}"),
+        "Image { width: 16, height: 8, gamma: 0.45455, .. }"
+    );
+    let mut result = attr.quantize(&mut image).unwrap();
+    result.remapped(&mut image).unwrap();
+    let debug = format!("{result:?}");
+    assert!(debug.starts_with("QuantizationResult { colors: "), "{debug}");
+    assert!(
+        debug.contains("profile: Improved, quantization_error: Some("),
+        "{debug}"
+    );
+}

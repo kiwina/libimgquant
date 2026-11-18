@@ -9,7 +9,7 @@ variance-based median cut, Hartigan refinement after k-means, an exact nearest-c
 an OKLab-shaped color difference and a palette order that makes PNGs smaller.
 `profile="compat"` reproduces 2.4.1's algorithms instead, apart from a few bug fixes. The
 [Rust crate's README](https://crates.io/crates/libimgquant) describes the algorithms and
-compares them with libimagequant 2.4.1 and 4.4.1.
+compares them with libimagequant 2.4.1 and imagequant 4.4.1.
 
 - **BSD-2-Clause**, no GPL code: usable in closed-source and commercial software.
 - **One wheel per platform** for CPython 3.9 and newer (stable ABI, `abi3`).
@@ -39,9 +39,9 @@ with open("photo-fs8.png", "wb") as f:
     f.write(small)
 ```
 
-`compress_png` reads any PNG and writes a palette PNG with the same dimensions and gamma, the
-smallest bit depth, a tRNS chunk only as long as needed, and the smaller of a filtered and
-an unfiltered encoding.
+`compress_png` reads any PNG and writes a palette PNG with the same dimensions, gamma and
+ICC color profile, the smallest bit depth, a tRNS chunk only as long as needed, and the
+smaller of a filtered and an unfiltered encoding.
 
 ## Quantize pixels
 
@@ -144,5 +144,7 @@ from a `ThreadPoolExecutor`. The output does not depend on the number of threads
 
 ## License
 
-BSD-2-Clause, plus the original permissive notice by Jef Poskanzer. See the `LICENSE` file
-in the package. The Rust library is [libimgquant on crates.io](https://crates.io/crates/libimgquant).
+BSD-2-Clause, plus the original permissive notice by Jef Poskanzer. See the `LICENSE` and
+`NOTICE` files in the package. The wheels and the sdist also contain
+`THIRD-PARTY-LICENSES.txt`, the licenses of the Rust crates compiled into the extension. The
+Rust library is [libimgquant on crates.io](https://crates.io/crates/libimgquant).

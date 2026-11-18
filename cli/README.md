@@ -3,14 +3,20 @@
 A command-line lossy PNG compressor with a pngquant-style interface. It converts 24/32-bit
 PNG images to 8-bit palette PNGs with alpha, using
 [libimgquant](https://crates.io/crates/libimgquant), the pure-Rust, BSD-licensed color
-quantizer. 100% Rust, no C dependencies. On libimgquant's 22-image test corpus (photos,
-sprites with alpha, UI screenshots, art), the output is 30% of the input size in total.
+quantizer. 100% Rust, no C dependencies. On libimgquant's private 22-image test set (photos,
+sprites with alpha, UI screenshots, art; see
+[BENCHMARKS.md](https://docs.rs/crate/libimgquant/latest/source/BENCHMARKS.md)), the output
+is 30% of the input size in total.
 
 ## Install
 
 ```bash
 cargo install imgquant
 ```
+
+Prebuilt binaries for Linux (static, x86_64 and aarch64), Windows (x64) and macOS (arm64,
+x86_64) are attached to each [GitHub release](https://github.com/kiwina/libimgquant/releases);
+`cargo binstall imgquant` downloads the right one.
 
 From a checkout of the repository: `cargo install --path cli`. The build is
 multi-threaded by default; `--no-default-features` builds a single-threaded binary.
@@ -55,11 +61,12 @@ On Windows, cmd and PowerShell don't expand `*.png`. In PowerShell, pass the fil
 | `--ext SUFFIX` | Suffix of output file names, replacing a trailing `.png` of the input. Default `-fs8.png`, or `-or8.png` when dithering is off. |
 | `--skip-if-larger` | Only save converted files that are smaller than the input. |
 | `-Q`, `--quality MIN-MAX` | Quality 0–100, like JPEG. The fewest colors that reach `MAX` are used; if even `ncolors` colors can't reach `MIN`, the file is not saved (exit code 99). Also `MAX` or `-MAX` (minimum 0) and `MIN-` (maximum 100). |
-| `-s`, `--speed N` | 1 (slowest, best) to 10 (fastest). Default 3. |
-| `--nofs` | No dithering. |
+| `-s`, `--speed N` | 1 (slowest, best) to 10 (fastest). Default 3. 11, pngquant's fastest, is accepted and is the same as 10. |
+| `--nofs`, `--ordered` | No dithering. |
 | `--floyd[=LEVEL]` | Floyd-Steinberg dithering level 0.0–1.0; default 1 (full). The level must be given with `=`. |
 | `--posterize N` | Ignore the N least significant bits of each channel (0–4), for displays with fewer bits per channel. |
-| `--strip` | Accepted for compatibility; metadata is never copied. |
+| `--strip` | Don't copy the ICC profile. The gamma is always kept. |
+| `--transbug` | Put the fully transparent color last in the palette, for software that expects it there. The tRNS chunk then covers the whole palette, and with `--profile improved` such images are not reordered for compression, so they can be up to about 10% larger. Images without a fully transparent color are unaffected. |
 | `--profile NAME` | `improved` (default): libimgquant 3's algorithms. `compat`: libimagequant 2.4.1's algorithms. |
 | `--threads N` | Number of worker threads (default: one per CPU). |
 | `-v`, `--verbose` | Print the quantizer's progress and per-file statistics (size, colors, quality, time) to standard error. |
@@ -82,7 +89,8 @@ Short options can be combined (`-fv`), and option values can be given as `--spee
 | 99 | The image could not reach the minimum `--quality`. The file is not written. |
 
 With several input files, every file is processed in order, and the exit code is that of the
-first file that failed.
+first file that failed. When the output is standard output (`-o -`, or `-` as the input
+without `-o`), 98 and 99 write the input there unchanged, so a pipeline still gets a PNG.
 
 ## Output files
 
@@ -98,25 +106,30 @@ first file that failed.
 - **Gamma:** a gAMA chunk is used as the image's gamma during quantization and written to
   the output unchanged. Images with an sRGB chunk, or with no color space chunk, are treated
   as sRGB and written without one.
+- **ICC profile:** an RGB ICC profile (iCCP chunk) is copied to the output unless `--strip`
+  is given. A gray profile is not copied, because the output is a color (palette) image. The
+  profile's name is not kept (the png crate writes `_`).
 
 ## Differences from pngquant
 
-- **Metadata:** only the gamma (gAMA) is carried over. Text, EXIF, ICC profiles, sRGB, cHRM,
-  pHYs and other chunks are not copied, so `--strip` changes nothing.
+- **Metadata:** only the gamma (gAMA) and an RGB ICC profile (iCCP) are carried over, and
+  `--strip` drops only the ICC profile. Text, EXIF, sRGB, cHRM, pHYs and other chunks are
+  not copied.
 - **Quantizer:** the default `improved` profile gives better quality and smaller files than
   libimagequant 2.4.1; `--profile compat` reproduces 2.4.1's palettes and remapping. The
   output is the same on every platform and for every `--threads` value.
 - **`--floyd`:** the level is only accepted as `--floyd=LEVEL`, so that a following number is
   not taken as its value.
-- **Not implemented:** `--map`, `--iebug`, `--transbug`, `--ordered` and other options not
-  listed above are rejected with exit code 2.
+- **`--speed 11`:** the same as 10. pngquant's speed 11 also turns dithering off.
+- **Not implemented:** `--map`, `--iebug` and other options not listed above are rejected
+  with exit code 2.
 - **`--skip-if-larger`:** compares the output with the input file size only.
-- **`-` as output when the file is not saved (exit code 98 or 99):** nothing is written to
-  standard output. pngquant writes the original image there when the quality is too low.
 - **Error exit codes:** imgquant uses 1 for any read, decode or write error and 2 for an
   invalid command line. pngquant's codes for these cases differ (2 is a read error there);
   0, 15, 98 and 99 mean the same in both.
 
 ## License
 
-BSD-2-Clause, plus the original permissive notice by Jef Poskanzer. See [COPYRIGHT](https://docs.rs/crate/imgquant/latest/source/COPYRIGHT).
+BSD-2-Clause, plus the original permissive notice by Jef Poskanzer. See
+[LICENSE](https://docs.rs/crate/imgquant/latest/source/LICENSE) and
+[NOTICE](https://docs.rs/crate/imgquant/latest/source/NOTICE).
